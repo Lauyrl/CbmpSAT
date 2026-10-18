@@ -1,69 +1,77 @@
 from scipy.io import mmread
 from sat_encodings import *
-from pysat.solvers import Glucose4
+from pysat.solvers import Cadical300
 
-# ============ READ INPUT
-GRAPH = mmread("datasets/662_bus/30_bus.mtx") 
-N = GRAPH.shape[0]  # num vertices
+def main(dataset):
+    # ============ READ INPUT
+    GRAPH = mmread(f"datasets/662_bus/{dataset}") 
+    N = GRAPH.shape[0]  # num vertices
 
-rows, cols = GRAPH.nonzero()  # edge if: matrix cell has nonzero val
-edges = [(u, v) for u, v in zip(rows, cols) if u < v] # ignoring duplicate pairs, and diagonal
+    rows, cols = GRAPH.nonzero()  # edge if: matrix cell has nonzero val
+    edges = [(u, v) for u, v in zip(rows, cols) if u < v] # ignoring duplicate pairs, and diagonal
 
-# ============ BUILD VARIABLES
-x_start = 1
-g_start = x_start + (N - 1) * N + (N - 1) + 1
-X = [[(x_start + u * N + i) for i in range(N)] for u in range(N)]
-G = [[(g_start + u * (N + 1) + i) for i in range(N + 1)] for u in range(N)]
+    # ============ BUILD VARIABLES
+    x_start = 1
+    g_start = x_start + N * N
+    a_start = g_start + (N + 1) * N
+    X = [[(x_start + u * N + i) for i in range(N)] for u in range(N)]
+    G = [[(g_start + u * (N + 1) + i) for i in range(N + 1)] for u in range(N)]
 
-# ============ BUILD BASE CLAUSES
-clauses = []
+    # ============ BUILD BASE CLAUSES
+    clauses = []
 
-clauses.extend(injectivity_X(N, X))
-clauses.extend(injectivity_G(N, G))
-clauses.extend(monotonic_G(N, G))
-clauses.extend(lower_upper_bound_G(N, G)) # this one forces all vertices to be at least 1 (G[u][1])
-clauses.extend(biconditional_X_and_G(N, X, G))
+    new_clauses, a_start = injectivity_surjectivity_X(N, X, a_start)
+    clauses.extend(new_clauses)
+    clauses.extend(monotonic_G(N, G))
+    clauses.extend(lower_upper_bound_G(N, G)) # this one forces all vertices to be at least 1 (G[u][1])
+    clauses.extend(biconditional_X_and_G(N, X, G))
 
-# ============ ITERATIVE SAT
-# === INIT
-UB = N - 1 # trivial bound
+    # ============ ITERATIVE SAT
+    # === INIT
+    UB = N # trivial bound
 
-solver = Glucose4()
-solver.append_formula(clauses)
+    solver = Cadical300()
+    solver.append_formula(clauses)
 
-# === ITERATE
-while True:
-    # UPPER BOUND MINIMIZATION CLAUSES
-    for edge in edges:
-        u, v = edge
+    # === ITERATE
+    while True:
+        # === UPPER BOUND MINIMIZATION CLAUSES
+        for edge in edges:
+            u, v = edge
 
-        for i in range(N): # fix u = i
-            right_bound = i + UB
-            if i + UB < N:
-                solver.add_clause([-X[u][i]] + lt(G, v, right_bound))
+            for i in range(N - UB):
+                # === |f(u) - f(v)| < UB
+                # cho p = i + UB, bootstrap v up until u = p and vice versa
+                solver.add_clause([-G[u][i + UB], G[v][i + 1]]) # u >= p ---> v > p - UB
+                solver.add_clause([-G[v][i + UB], G[u][i + 1]]) # v >= p ---> u > p - UB
+                
 
-            left_bound = i - UB
-            if i - UB + 1 > 0:
-                solver.add_clause([-X[u][i]] + gte(G, v, left_bound + 1))
+        result = solver.solve()
+        if not result: break
+        
+        model = solver.get_model()
 
-    result = solver.solve()
-    if not result: break
-    
-    model = solver.get_model()
+        # === EXTRACT BANDWIDTH
+        values = [0 for i in range(N)]
 
-    values = [0 for i in range(N)]
+        for lit in model[:N * N]:
+            if lit > 0:
+                u_, i_ = divmod(lit - 1, N) # divmod(lit - 1, N) returns ((lit - 1) // N, (lit - 1) % N) 
+                values[u_] = i_
 
-    for lit in model[:N * N]:
-        if lit > 0:
-            u_, i_ = divmod(lit - 1, N) # divmod(lit - 1, N) returns (lit - 1 // N, lit - 1 % N) 
-            values[u_] = i_
+        bandwidth = 0
+        for edge in edges:
+            u, v = edge
 
-    bandwidth = 0
-    for edge in edges:
-        u, v = edge
+            bandwidth = max(bandwidth, abs(values[u] - values[v])) 
 
-        bandwidth = max(bandwidth, abs(values[u] - values[v])) 
+        UB = bandwidth
+        print(UB)
 
-    UB = bandwidth
-    print(UB)
-    
+    solver.delete()
+
+from sys import argv
+if __name__ == "__main__":
+    dataset = argv[1]
+
+    main(dataset)
