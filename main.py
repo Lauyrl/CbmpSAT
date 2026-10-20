@@ -2,6 +2,7 @@ from scipy.io import mmread
 from sat_encodings import *
 from pysat.solvers import Cadical300
 
+# ======================== BMP =========================
 def main(dataset):
     # ============ READ INPUT
     GRAPH = mmread(f"datasets/662_bus/{dataset}") 

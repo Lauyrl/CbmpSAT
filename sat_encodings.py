@@ -114,69 +114,69 @@ def break_reflection_symmetry(N, X, G):
 
 
 # ===================================== UNUSUED ========================================
-# === LT
-def lt(G, v, k):
-    """
-    if X[v] < k, then -G[v][k]
-    """
-    return [-G[v][k]]
+# # === LT
+# def lt(G, v, k):
+#     """
+#     if X[v] < k, then -G[v][k]
+#     """
+#     return [-G[v][k]]
 
-# === GTE
-def gte(G, v, k):
-    """
-    if X[v] >= k, then G[v][k]
-    """
-    return [G[v][k]]
+# # === GTE
+# def gte(G, v, k):
+#     """
+#     if X[v] >= k, then G[v][k]
+#     """
+#     return [G[v][k]]
 
-def injectivity_X(N, X):
-    """
-    x_u != x_v: X[u][i] -> -X[v][i] == -X[u][i] or -X[v][i]  ==  -X[v][i] or -X[u][i] == X[v][i] -> -X[u][i]  
-    """
-    clauses = []
-    for i in range(N):
-        for u in range(N - 1):
-            for v in range(u + 1, N):
-                clauses.append([-X[u][i], -X[v][i]])
-    return clauses
+# def injectivity_X(N, X):
+#     """
+#     x_u != x_v: X[u][i] -> -X[v][i] == -X[u][i] or -X[v][i]  ==  -X[v][i] or -X[u][i] == X[v][i] -> -X[u][i]  
+#     """
+#     clauses = []
+#     for i in range(N):
+#         for u in range(N - 1):
+#             for v in range(u + 1, N):
+#                 clauses.append([-X[u][i], -X[v][i]])
+#     return clauses
 
-# === injectivity G
-def injectivity_G(N, G):
-    """
-    (G[u][i] and -G[u][i+1]) -> -(G[v][i] and -G[v][i+1])  
-    """
-    clauses = []
-    for i in range(N):
-        for u in range(N - 1):
-            for v in range(u + 1, N):
-                clauses.append([-G[u][i], G[u][i + 1], -G[v][i], G[v][i + 1]])
-    return clauses
-
-
+# # === injectivity G
+# def injectivity_G(N, G):
+#     """
+#     (G[u][i] and -G[u][i+1]) -> -(G[v][i] and -G[v][i+1])  
+#     """
+#     clauses = []
+#     for i in range(N):
+#         for u in range(N - 1):
+#             for v in range(u + 1, N):
+#                 clauses.append([-G[u][i], G[u][i + 1], -G[v][i], G[v][i + 1]])
+#     return clauses
 
 
-# ========================= NAIVE EXACT VALUE LT, GT ENCODINGS =========================
-# need |v - u| < ub, so: if u = j, then j - ub < v < j + ub
-# can act as EO
-def less_than(N, nv, ui, k): # ui: u = i
-    clauses = []
-    # v < i + ub -----> v <= i + ub - 1
-    for j in range(1, k):
-        clauses.append([-ui, nv + (j - 1)])     # (u = i) --> v = j, j < k
+
+
+# # ========================= NAIVE EXACT VALUE LT, GT ENCODINGS =========================
+# # need |v - u| < ub, so: if u = j, then j - ub < v < j + ub
+# # can act as EO
+# def less_than(N, nv, ui, k): # ui: u = i
+#     clauses = []
+#     # v < i + ub -----> v <= i + ub - 1
+#     for j in range(1, k):
+#         clauses.append([-ui, nv + (j - 1)])     # (u = i) --> v = j, j < k
         
-    for j in range(k, N + 1):
-        clauses.append([-ui, -(nv + (j - 1))])  # (u = i) --> -(v = j), j >= k
+#     for j in range(k, N + 1):
+#         clauses.append([-ui, -(nv + (j - 1))])  # (u = i) --> -(v = j), j >= k
 
-    nv += N
-    return clauses, nv
+#     nv += N
+#     return clauses, nv
 
-def greater_than(N, nv, ui, k): # ui: u = i
-    clauses = []
-    # v > i - ub -----> v >= i - ub + 1
-    for j in range(1, k + 1):
-        clauses.append([-ui, -(nv + (j - 1))])  # (u = i) --> -(v = j), j <= k 
+# def greater_than(N, nv, ui, k): # ui: u = i
+#     clauses = []
+#     # v > i - ub -----> v >= i - ub + 1
+#     for j in range(1, k + 1):
+#         clauses.append([-ui, -(nv + (j - 1))])  # (u = i) --> -(v = j), j <= k 
             
-    for j in range(k + 1, N + 1):
-        clauses.append([-ui, (nv + (j - 1))])   # (u = i) --> v = j, j > k
+#     for j in range(k + 1, N + 1):
+#         clauses.append([-ui, (nv + (j - 1))])   # (u = i) --> v = j, j > k
 
-    nv += N
-    return clauses, nv
+#     nv += N
+#     return clauses, nv

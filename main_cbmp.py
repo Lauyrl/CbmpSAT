@@ -4,7 +4,7 @@ from pysat.solvers import Cadical300
 
 def main(dataset):
     # ============ READ INPUT
-    GRAPH = mmread(f"datasets/662_bus/{dataset}") 
+    GRAPH = mmread(f"datasets/{dataset}.mtx") 
     N = GRAPH.shape[0]  # num vertices
 
     rows, cols = GRAPH.nonzero()  # edge if: matrix cell has nonzero val
@@ -65,6 +65,7 @@ def main(dataset):
             u, v = edge
 
             bandwidth = max(bandwidth, min(abs(values[u] - values[v]), N - abs(values[u] - values[v]))) 
+            assert bandwidth < UB # catch bugs
 
         UB = bandwidth
         print(UB)
