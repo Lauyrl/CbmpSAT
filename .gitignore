@@ -1,5 +1,11 @@
 __pycache__/*
 .venv/*
 .vscode/*
-idk/*
 ref/*
+*.aux
+*.log
+*.out
+*.abs
+*.fls
+*.fdb_latexmk
+*.synctex.gz
