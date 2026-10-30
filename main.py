@@ -27,7 +27,7 @@ def main(dataset):
     clauses.extend(lower_upper_bound_G(N, G)) # this one forces all vertices to be at least 1 (G[u][1])
     clauses.extend(biconditional_X_and_G(N, X, G))
 
-    # ============ ITERATIVE SAT
+    # ============ INCREMENTAL SAT
     # === INIT
     UB = N # trivial bound
 

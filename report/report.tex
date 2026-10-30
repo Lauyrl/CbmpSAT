@@ -1,4 +1,4 @@
-\documentclass[a4paper,fleqn]{cas-sc}
+\documentclass[a4paper]{cas-sc}
 
 \usepackage[authoryear,longnamesfirst]{natbib}
 \usepackage[utf8]{inputenc}
@@ -11,6 +11,8 @@
 \usepackage{placeins}
 \usepackage{caption}
 \usepackage{booktabs}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
 
 \setlength{\parindent}{2em}
 \setlist[enumerate]{listparindent=\parindent,itemindent=\parindent}
@@ -27,11 +29,11 @@
 \def\textpagefraction{.001}
 
 % Short title
-\shorttitle{Solving the N-Queens problem via SAT solving}    
+\shorttitle{A SAT solving approach to CBMP}    
 % Short author
 \shortauthors{Lê Nam Huy}  
 % Main title of the paper
-\title [mode = title]{Solving the N-Queens problem via SAT solving}  
+\title [mode = title]{A SAT solving approach to the Cyclic Bandwidth Minimization Problem}  
 % Author
 \author{Student: Lê Nam Huy\\24021516}
 % Abstract
@@ -42,8 +44,185 @@
 \maketitle
 
 % Main text
+\section{Method}
+
+    \subsection{Label assignment constraint}
+        Each vertex $u$ corresponds to $N$ label variables $X_u=\left\{x_u^1,x_u^2,\dots,x_u^N\right\}$, where $x_u^k$ is true if vertex $u$ is assigned label $k$. Given $N$ vertices and $N$ unique labels, a valid assignment is one where \textit{each label $k$ is assigned to Exactly One vertex}, which can be expressed as the conjunction of an At Most One (AMO) constraint and an At Least One (ALO) constraint upon the sets of variables corresponding to each label $k$. Specifically, let $X^k = \{x_1^k, x_2^k, \dots, x_N^k\}$ be the variables representing the assignment of label $k$ to each vertex. For each $k$, the constraint is encoded as $\text{AMO}(X^k) \wedge \text{ALO}(X^k)$.
+
+        \subsubsection{At Least One (ALO)}
+            \noindent A single clause can be used to express $\text{ALO}(X^k)$:
+            \begin{equation}
+                \text{ALO}(X^k) = \bigvee_{u=1}^{N} x_u^k.
+            \end{equation}
+
+        \subsubsection{At Most One (AMO)}
+            \noindent This report discusses 2 ways to encode $\text{AMO}(X^k)$:
+            \begin{itemize}
+                \item \textbf{Pairwise:} explicitly encode that if one variable is true, every other variable must be false:
+                
+                \begin{equation}
+                    \text{AMO}(X^k) = \bigwedge_{u=1}^{N-1}
+                    \bigwedge_{v=u+1}^{N}
+                    \left(x_u^k \rightarrow \neg x_v^k\right)
+                \end{equation}
+
+                Or in CNF:
+                \begin{equation}
+                    \text{AMO}(X^k) = \bigwedge_{u=1}^{N-1}
+                    \bigwedge_{v=u+1}^{N}
+                    \left(\neg x_u^k \vee \neg x_v^k\right)
+                \end{equation}
+
+                It uses no auxiliary variables but needs $\binom{N}{2} = O(N^2)$ binary clauses.
+
+                \item \textbf{Product:} arrange the $N$ variables in a $p \times q$ grid ($pq \ge N$, typically $p \approx q \approx \lceil\sqrt{N}\rceil$) and introduce row variables $r_1,\dots,r_p$ and column variables $c_1,\dots,c_q$. The variable in cell $(a,b)$ implies both its row and its column:
+                    \begin{equation}
+                        x_{a,b} \rightarrow r_a, \qquad x_{a,b} \rightarrow c_b.
+                    \end{equation}
+                    Then $\text{AMO}(r_1,\dots,r_p)$ and $\text{AMO}(c_1,\dots,c_q)$ are enforced (recursively with the product encoding, or pairwise when small). Two true variables would have to differ in a row or a column, violating one of the two AMO constraints. This uses $O(\sqrt{N})$ auxiliary variables and $O(N)$ clauses, far fewer clauses than pairwise for large $N$.
+            \end{itemize}
 
 
+    \subsection{Bandwidth constraint}
+        Given a graph $G(V,E)$ with $|V|=N$ and a bandwidth upper bound $\text{UB}$, the goal is to find an assignment $A$ where every edge satisfies the bandwidth constraint. Specifically, let $a(u)=i$ and $a(v)=j$, the distance between two labels in BMP is:
+        \begin{equation}
+            d'(i,j) = |i-j|.
+        \end{equation}
+        An edge $(u,v)\in E$ satisfies the constraint if $d'(i,j) \le \text{UB}-1$ (equivalently, $d'(i,j) < \text{UB}$). The general approach to encoding this constraint can be described as follows: for each $i$, if $a(u)=i$, then $a(v) \in [i-\text{UB}+1,\, i+\text{UB}-1]$.
+        
+        \vspace{1em}
+
+        Note that since $d'(i,j)$ is symmetric, applying these constraints in one direction ($u \to v$) is sufficient. 
+
+        \paragraph{\textbf{Direct encoding.}}
+            The direct encoding explicitly forbids every pair of labels that are too far apart. Specifically, for each edge $(u,v)\in E$ and all assignments $a(u)=i$ and $a(v)=j$:
+            \begin{equation}
+                \neg x_u^i \vee \neg x_v^j \qquad \forall \; 1 \le i,j \le N,\; \text{if} \; d'(i,j) > \text{UB}-1.
+            \end{equation}
+            This takes $O(|E|\cdot N^2)$ clauses in the worst case, which is expensive for large graphs.
+
+            \vspace{1em}
+
+            Note that this encoding additionally requires $\text{AMO}(X_u) \wedge \text{ALO}(X_u)$ clauses for every vertex $u$, to ensure that each vertex is assigned exactly one label.
+
+        \paragraph{\textbf{Order encoding.}}
+            The order encoding introduces $N+1$ auxiliary variables \textit{per vertex}: $G_u=\{g_u^1, g_u^2,\dots, g_u^N, g_u^{N+1}\}$, where $g_u^k$ is true if $a(u) \ge k$. 
+            
+            For example, with $N=6$ and $a(u)=3$:
+            \begin{center}
+                \begin{tabular}{c|ccccccc}
+                    label $k$ & 1                   & 2                   & 3                   & 4 & 5 & 6 & 7  \\ \hline
+                    $x_u^k$   & F                   & F                   & \textit{\textbf{T}} & F & F & F & \_ \\
+                    $g_u^k$   & \textit{\textbf{T}} & \textit{\textbf{T}} & \textit{\textbf{T}} & F & F & F & F  \\
+                \end{tabular}
+            \end{center}
+
+            \noindent This encoding is composed of 2 components: the consistency clauses and the biconditional clauses.
+
+            \noindent \textit{The consistency clauses:}
+            \begin{equation}
+                g_u^{k+1} \rightarrow g_u^{k} \qquad \forall \; u\in V,\; 1 \le k < N
+            \end{equation}
+            In combination with the constants $g_u^1 = \text{true}$ and $g_u^{N+1} = \text{false}$, these clauses enforce that if $a(u)=k$, then $G_u$ is a series of true variables starting from the constant $g_u^1$ up until $g_u^k$, followed by a series of false variables, bounded by $g_u^{N+1}$.
+
+            \vspace{1em}
+
+            \noindent \textit{The biconditional clauses:}
+            \begin{equation}
+                x_u^k \leftrightarrow (g_u^k \wedge \neg g_u^{k+1}) \qquad \forall \; u\in V,\; 1 \le k \le N
+            \end{equation}
+            These clauses enforce the relationship between the auxiliary order variables and the label variables.
+
+            \vspace{1em}
+            
+            With this, the bandwidth constraint for an edge $(u,v) \in E$ can be stated in terms of the label variable $x_u^i$ of $u$, and the order variables $G_v$ of $v$:
+            \begin{align}
+                x_u^i &\rightarrow g_v^{i-\text{UB}+1} \\
+                x_u^i &\rightarrow \neg g_v^{i+\text{UB}}
+            \end{align}
+            \[
+            \forall \; (u,v) \in E,\; 1 \le i \le N.
+            \]
+            
+            Since $g_v^k$ is true if $a(v) \ge k$, it expresses a left bound $a(v) \geq k$, while its negation $\neg g_v^k$ expresses a right bound $a(v) < k$. The literal $g_v^{i-\text{UB}+1}$ is trivially true when $i - \text{UB} \le 0$, and $\neg g_v^{i+\text{UB}}$ is trivially true when $i+\text{UB} > N$, so the corresponding clauses are omitted. In total, this encoding takes $O(|E|\cdot N + N^2)$ clauses, $O(|E|\cdot N)$ for the bandwidth constraint and $O(N^2)$ for the consistency and biconditional clauses, compared to $O(|E|\cdot N^2)$ for the direct encoding.
+
+            \vspace{1em}
+
+            Note that, by the \textit{biconditional clauses}, $x_u^k$ is true exactly when $g_u^k$ is true \textit{and} $g_u^{k+1}$ is false, which only happens at the point where $G_u$ switches from true to false. Since the constants $g_u^1 = \text{true}$ and $g_u^{N+1} = \text{false}$ guarantee that a switch exists at some point between $k=1$ and $k=N$, and the \textit{consistency clauses} guarantee that there is only one switch, it follows that exactly one $x_u^k$ is true for each vertex $u$. Therefore, the order encoding also ensures that every vertex is assigned exactly one label as a side effect.
 
 
+    \subsection{Cyclic bandwidth constraint}
+        In the cyclic variant of BMP, labels lie on a circle and the distance between two labels is:
+        \begin{equation}
+            d(i,j) = \min\bigl(|i-j|,\; N-|i-j|\bigr).
+        \end{equation}
+        Let $a(u)=i$ and $a(v)=j$. An edge $(u,v)\in E$ satisfies the constraint if $d(i,j) \le \text{UB}-1$ (equivalently, $d(i,j) < \text{UB}$). Specifically, for each edge $(u,v)\in E$ and each label $i$ of $u$, the constraint on $v$ depends on whether the range of valid labels for $v$ wraps around the circle:
+        \begin{align}
+            \intertext{\hspace*{\parindent}no wrap $(\text{UB} \le i \le N-\text{UB}+1)$:}
+            x_u^i &\rightarrow g_v^{i-\text{UB}+1} \\
+            x_u^i &\rightarrow \neg g_v^{i+\text{UB}} \\
+            \intertext{\hspace*{\parindent}wraps left $(1 \leq i < \text{UB})$:}
+            x_u^i &\rightarrow (\neg g_v^{i+\text{UB}} \vee g_v^{N+i-\text{UB}+1}) \\
+            \intertext{\hspace*{\parindent}wraps right $(N-\text{UB}+1 < i \leq N)$:}
+            x_u^i &\rightarrow (\neg g_v^{i+\text{UB}-N} \vee g_v^{i-\text{UB}+1})
+        \end{align}
+
+        In the wrapping cases the allowed set is a union of two intervals, $[1,\,i+\text{UB}-1] \cup [N+i-\text{UB}+1,\,N]$ when wrapping left, and $[1,\,i+\text{UB}-N-1] \cup [i-\text{UB}+1,\,N]$ when wrapping right. The two wrapping cases cannot occur simultaneously when the upper bound is correctly initialized as $\text{UB} \le \left\lfloor \frac{N}{2} \right\rfloor$. 
+        
+        \vspace{1em}
+        
+        Note that since $d(i,j)$ is symmetric, applying these constraints in one direction ($u \to v$) is sufficient.
+
+    \subsection{Finding the minimum bandwidth using Incremental SAT}
+        In order to find the minimum bandwidth of a graph, we repeatedly try to find assignments that satisfiy a shrinking upper bound until a valid assignment no longer exists. In SAT solving terms, we try to solve a sequence of formulas, each enforcing a smaller $\text{UB}$. Each satisfiable result updates $\text{UB}$ to the bandwidth of the assignment found, and the first UNSAT result proves that the current $\text{UB}$ is already minimal.
+
+        \vspace{1em}
+
+        \noindent Due to the monotonicity of the order encoding:
+        \begin{align}
+            &g_u^{k+1} \rightarrow g_u^k \\
+            &\neg g_u^k \rightarrow \neg g_u^{k+1}
+        \end{align}
+        
+        \noindent the clauses for a smaller $\text{UB}$ imply those for previous, larger $\text{UB}$s:
+        \begin{align}
+            &g_v^{k-\text{UB}+1} \rightarrow g_v^{k-\text{UB}} \\
+            &\neg g_v^{k+\text{UB}} \rightarrow \neg g_v^{k+\text{UB}+1}
+        \end{align}
+        
+        Therefore, each subsequent formula can be obtained by appending new clauses, which enforce a smaller $\text{UB}$, to the previous formula. As each new formula is just an extension of a formula that the solver has already solved, this enables the same solver instance to be reused to solve them, rather than re-initialized. This technique is known as Incremental SAT, and it allows the solver to retain its internal heuristics and learned clauses across formulas, which can potentially reduce solve times.
+
+        \paragraph{\textbf{Initial upper bound.}}
+            The search proceeds downwards from an initial upper bound, which is the bandwidth computed from a heuristic assignment (e.g.\ Cuthill-McKee).
+
+        \begin{algorithm}[H]
+            \caption{Pseudocode of Incremental SAT for the cyclic bandwidth problem}
+            \begin{algorithmic}[1]
+                \State \textbf{Input}: Undirected graph $G(V,E)$ with $|V|=N$, time limit: $T_{\max}$
+                \State \textbf{Output}: The best assignment $A$, and its resulting bandwidth $\text{UB}$
+                \Statex
+                \State $A \gets \textsc{InitialAssignment}(G)$ \Comment{heuristic assignment, e.g.\ Cuthill-McKee}
+                \State $\text{UB} \gets \textsc{Bandwidth}(A)$
+                \State $\text{clauses} \gets \textsc{InitialClauses}()$ \Comment{label assignment constraints, order encoding consistency constraints,...}
+                \Statex
+                \While{$\textsc{TimeElapsed}() < T_{\max}$}
+                    \ForAll{$(u,v) \in E$}
+                        \For{$i = 1$ \textbf{to} $N$}
+                            \State $\text{clauses}$.append( $[a(u)=i] \rightarrow [\min(|a(u)-a(v)|,\, N-|a(u)-a(v)|) \le \text{UB}-1]$ )
+                        \EndFor
+                    \EndFor
+                    \Statex
+                    \State $result, model \gets \textsc{Solve}(\text{clauses}, T_{\max}-\textsc{TimeElapsed}())$
+                    \If{$result$ is UNSAT \textbf{or} $\textsc{TimeElapsed}() > T_{\max}$}
+                        \State \textbf{break} \Comment{UNSAT: $\text{UB}$ is minimal; timeout: best bound found}
+                    \EndIf
+                    \Statex
+                    \State $A \gets \textsc{ExtractAssignment}(model)$
+                    \State $\text{UB} \gets \textsc{Bandwidth}(A)$ \Comment{may be smaller than the enforced $\text{UB}-1$}
+                \EndWhile
+                \Statex
+                \State \textbf{return} $A$, $\text{UB}$
+            \end{algorithmic}
+        \end{algorithm}
+    
 \end{document}
