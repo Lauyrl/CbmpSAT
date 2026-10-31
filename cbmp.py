@@ -1,7 +1,7 @@
 from scipy.io import mmread
 from scipy.sparse.csgraph import reverse_cuthill_mckee
 from sat_encodings import *
-from pysat.solvers import Cadical300
+from pysat.solvers import Cadical195
 import numpy as np
 
 def compute_cyclic_bandwidth(N, edges, assignment):
@@ -18,7 +18,7 @@ def cuthill_mckee_layout(GRAPH, N):
     assignment[perm] = np.arange(N)                                        # assignment[u] = position of vertex u
     return assignment
 
-def main(dataset, use_symmetry_break, use_heuristic_initial_ub):
+def solve(dataset, use_symmetry_break, use_heuristic_initial_ub, best_ub):
     # ============ READ INPUT
     GRAPH = mmread(f"datasets/{dataset}.mtx") 
     N = GRAPH.shape[0]  # num vertices
@@ -53,10 +53,11 @@ def main(dataset, use_symmetry_break, use_heuristic_initial_ub):
     if use_heuristic_initial_ub:
         HEURISTIC_ASSIGNMENT = cuthill_mckee_layout(GRAPH, N)
         UB = int(compute_cyclic_bandwidth(N, edges, HEURISTIC_ASSIGNMENT))
+        best_ub.value = UB
     else:
         UB = N // 2 + 1 # trivial bound, with cyclic values, dist cant exceed N//2
 
-    solver = Cadical300()
+    solver = Cadical195()
     solver.append_formula(clauses)
 
     # === ITERATE
@@ -85,22 +86,7 @@ def main(dataset, use_symmetry_break, use_heuristic_initial_ub):
         assert bandwidth < UB # catch bugs
 
         UB = bandwidth
+        best_ub.value = UB
         print(UB)
 
-    print("minimum bandwidth:", UB)
     solver.delete()
-
-import argparse
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("dataset", 
-                        help="name of .mtx file in datasets/")
-    parser.add_argument("--symmetry-break", 
-                        action="store_true", 
-                        help="add rotation + reflection symmetry breaking")
-    parser.add_argument("--heuristic-ub", 
-                        action="store_true", 
-                        help="use Cuthill-McKee initial upper bound")
-    args = parser.parse_args()
-
-    main(args.dataset, args.symmetry_break, args.heuristic_ub)
