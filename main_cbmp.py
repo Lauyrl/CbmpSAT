@@ -1,8 +1,10 @@
 from scipy.io import mmread
+from scipy.sparse.csgraph import reverse_cuthill_mckee
 from sat_encodings import *
 from pysat.solvers import Cadical300
+import numpy as np
 
-def main(dataset):
+def main(dataset, use_symmetry_break):
     # ============ READ INPUT
     GRAPH = mmread(f"datasets/{dataset}.mtx") 
     N = GRAPH.shape[0]  # num vertices
@@ -27,9 +29,10 @@ def main(dataset):
     clauses.extend(biconditional_X_and_G(N, X, G))
     
     # === CBMP symmetry breaking
-    ANCHOR_VERTEX = 0
-    clauses.extend(break_rotation_symmetry(X, ANCHOR_VERTEX))
-    clauses.extend(break_reflection_symmetry(N, X, G))
+    if use_symmetry_break:
+        ANCHOR_VERTEX = 0
+        clauses.extend(break_rotation_symmetry(X, ANCHOR_VERTEX))
+        clauses.extend(break_reflection_symmetry(N, X, G))
 
     # ============ ITERATIVE SAT
     # === INIT
@@ -53,18 +56,18 @@ def main(dataset):
         model = solver.get_model()
 
         # === EXTRACT BANDWIDTH RESULT
-        values = [0 for i in range(N)]
+        assignment = [0 for i in range(N)]
 
         for lit in model[:N * N]:
             if lit > 0:
                 u_, i_ = divmod(lit - 1, N) # divmod(lit - 1, N) returns ((lit - 1) // N, (lit - 1) % N) 
-                values[u_] = i_
+                assignment[u_] = i_
 
         bandwidth = 0
         for edge in edges:
             u, v = edge
 
-            bandwidth = max(bandwidth, min(abs(values[u] - values[v]), N - abs(values[u] - values[v]))) 
+            bandwidth = max(bandwidth, min(abs(assignment[u] - assignment[v]), N - abs(assignment[u] - assignment[v]))) 
             assert bandwidth < UB # catch bugs
 
         UB = bandwidth
@@ -75,5 +78,6 @@ def main(dataset):
 from sys import argv
 if __name__ == "__main__":
     dataset = argv[1]
+    use_symmetry_break = argv[2]
 
-    main(dataset)
+    main(dataset, use_symmetry_break)
