@@ -12,7 +12,13 @@ def compute_cyclic_bandwidth(N, edges, assignment):
         ) for u, v in edges
     )
 
-def main(dataset, use_symmetry_break):
+def cuthill_mckee_layout(GRAPH, N):
+    perm = reverse_cuthill_mckee(GRAPH.tocsr(), symmetric_mode=False)      # perm[k] = vertex placed at position k
+    assignment = np.empty(N, dtype=int)
+    assignment[perm] = np.arange(N)                                        # assignment[u] = position of vertex u
+    return assignment
+
+def main(dataset, use_symmetry_break, use_heuristic_initial_ub):
     # ============ READ INPUT
     GRAPH = mmread(f"datasets/{dataset}.mtx") 
     N = GRAPH.shape[0]  # num vertices
@@ -44,7 +50,11 @@ def main(dataset, use_symmetry_break):
 
     # ============ ITERATIVE SAT
     # === INIT
-    UB = N // 2 + 1 # trivial bound, with cyclic values, dist cant exceed N//2
+    if use_heuristic_initial_ub:
+        HEURISTIC_ASSIGNMENT = cuthill_mckee_layout(GRAPH, N)
+        UB = compute_cyclic_bandwidth(N, edges, HEURISTIC_ASSIGNMENT)
+    else:
+        UB = N // 2 + 1 # trivial bound, with cyclic values, dist cant exceed N//2
 
     solver = Cadical300()
     solver.append_formula(clauses)
@@ -83,5 +93,6 @@ from sys import argv
 if __name__ == "__main__":
     dataset = argv[1]
     use_symmetry_break = argv[2]
+    use_heuristic_initial_ub = argv[3]
 
-    main(dataset, use_symmetry_break)
+    main(dataset, use_symmetry_break, use_heuristic_initial_ub)
