@@ -52,7 +52,7 @@ def main(dataset, use_symmetry_break, use_heuristic_initial_ub):
     # === INIT
     if use_heuristic_initial_ub:
         HEURISTIC_ASSIGNMENT = cuthill_mckee_layout(GRAPH, N)
-        UB = compute_cyclic_bandwidth(N, edges, HEURISTIC_ASSIGNMENT)
+        UB = int(compute_cyclic_bandwidth(N, edges, HEURISTIC_ASSIGNMENT))
     else:
         UB = N // 2 + 1 # trivial bound, with cyclic values, dist cant exceed N//2
 
@@ -87,12 +87,20 @@ def main(dataset, use_symmetry_break, use_heuristic_initial_ub):
         UB = bandwidth
         print(UB)
 
+    print("minimum bandwidth:", UB)
     solver.delete()
 
-from sys import argv
+import argparse
 if __name__ == "__main__":
-    dataset = argv[1]
-    use_symmetry_break = argv[2]
-    use_heuristic_initial_ub = argv[3]
+    parser = argparse.ArgumentParser()
+    parser.add_argument("dataset", 
+                        help="name of .mtx file in datasets/")
+    parser.add_argument("--symmetry-break", 
+                        action="store_true", 
+                        help="add rotation + reflection symmetry breaking")
+    parser.add_argument("--heuristic-ub", 
+                        action="store_true", 
+                        help="use Cuthill-McKee initial upper bound")
+    args = parser.parse_args()
 
-    main(dataset, use_symmetry_break, use_heuristic_initial_ub)
+    main(args.dataset, args.symmetry_break, args.heuristic_ub)
