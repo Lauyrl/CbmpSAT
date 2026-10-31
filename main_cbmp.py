@@ -4,6 +4,14 @@ from sat_encodings import *
 from pysat.solvers import Cadical300
 import numpy as np
 
+def compute_cyclic_bandwidth(N, edges, assignment):
+    return max(
+        min(
+            abs(assignment[u] - assignment[v]), 
+            N - abs(assignment[u] - assignment[v])
+        ) for u, v in edges
+    )
+
 def main(dataset, use_symmetry_break):
     # ============ READ INPUT
     GRAPH = mmread(f"datasets/{dataset}.mtx") 
@@ -58,17 +66,13 @@ def main(dataset, use_symmetry_break):
         # === EXTRACT BANDWIDTH RESULT
         assignment = [0 for i in range(N)]
 
-        for lit in model[:N * N]:
+        for lit in model[:N * N]:           # only check label variables (X_u)
             if lit > 0:
                 u_, i_ = divmod(lit - 1, N) # divmod(lit - 1, N) returns ((lit - 1) // N, (lit - 1) % N) 
                 assignment[u_] = i_
 
-        bandwidth = 0
-        for edge in edges:
-            u, v = edge
-
-            bandwidth = max(bandwidth, min(abs(assignment[u] - assignment[v]), N - abs(assignment[u] - assignment[v]))) 
-            assert bandwidth < UB # catch bugs
+        bandwidth = compute_cyclic_bandwidth(N, edges, assignment)
+        assert bandwidth < UB # catch bugs
 
         UB = bandwidth
         print(UB)
