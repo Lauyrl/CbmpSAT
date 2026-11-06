@@ -83,30 +83,31 @@
             \end{itemize}
 
 
-    \subsection{Bandwidth constraint}
-        Given a graph $G(V,E)$ with $|V|=N$ and a bandwidth upper bound $\text{UB}$, the goal is to find an assignment $A$ where every edge satisfies the bandwidth constraint. Specifically, let $a(u)=i$ and $a(v)=j$, the distance between two labels in BMP is:
+    \subsection{Label range constraint}
+        Given a graph $G(V,E)$ with $|V|=N$ and a bandwidth upper bound $\text{UB}$, we consider an assignment $A$ valid if every edge satisfies a bandwidth constraint, namely, the distance between the labels of its vertices must be less than UB.
+        
+        Let $a(u)=i$ and $a(v)=j$. In CBMP, labels lie on a circle and the distance between two labels is:
         \begin{equation}
-            d'(i,j) = |i-j|.
+            d(i,j) = \min\bigl(|i-j|,\; N-|i-j|\bigr).
         \end{equation}
-        An edge $(u,v)\in E$ satisfies the constraint if $d'(i,j) \le \text{UB}-1$ (equivalently, $d'(i,j) < \text{UB}$). The general approach to encoding this constraint can be described as follows: for each $i$, if $a(u)=i$, then $a(v) \in [i-\text{UB}+1,\, i+\text{UB}-1]$.
+        An edge $(u,v)\in E$ satisfies the bandwidth constraint if $d(i,j) \le \text{UB}-1$ (equivalently, $d(i,j) < \text{UB}$). The general approach to encoding this constraint involves fixing one vertex's label and applying a \textbf{label range constraint} on the other vertex. Specifically, for each $i$, if $a(u)=i$, then $a(v) \in [i-\text{UB}+1,\, i+\text{UB}-1] \bmod N$.
         
         \vspace{1em}
 
-        Note that since $d'(i,j)$ is symmetric, applying these constraints in one direction ($u \to v$) is sufficient. 
+        Note that since $d(i,j)$ is symmetric, applying these constraints in one direction ($u \to v$) is sufficient. 
 
         \paragraph{\textbf{Direct encoding.}}
             The direct encoding explicitly forbids every pair of labels that are too far apart. Specifically, for each edge $(u,v)\in E$ and all assignments $a(u)=i$ and $a(v)=j$:
             \begin{equation}
-                \neg x_u^i \vee \neg x_v^j \qquad \forall \; 1 \le i,j \le N,\; \text{if} \; d'(i,j) > \text{UB}-1.
+                \neg x_u^i \vee \neg x_v^j \qquad \forall \; 1 \le i,j \le N,\; \text{if} \; d(i,j) \geq \text{UB}.
             \end{equation}
-            This takes $O(|E|\cdot N^2)$ clauses in the worst case, which is expensive for large graphs.
 
             \vspace{1em}
 
             Note that this encoding additionally requires $\text{AMO}(X_u) \wedge \text{ALO}(X_u)$ clauses for every vertex $u$, to ensure that each vertex is assigned exactly one label.
 
         \paragraph{\textbf{Order encoding.}}
-            The order encoding introduces $N+1$ auxiliary variables \textit{per vertex}: $G_u=\{g_u^1, g_u^2,\dots, g_u^N, g_u^{N+1}\}$, where $g_u^k$ is true if $a(u) \ge k$. 
+            The order encoding introduces $N+1$ auxiliary variables \textit{per vertex}: $G_u=\{g_u^1, g_u^2,\dots, g_u^N, g_u^{N+1}\}$, where $g_u^k$ is true if $a(u) \ge k$. The variable $g_v^k$ expresses a left bound $a(v) \geq k$, while its negation $\neg g_v^k$ expresses a right bound $a(v) < k$.
             
             For example, with $N=6$ and $a(u)=3$:
             \begin{center}
@@ -134,44 +135,26 @@
             These clauses enforce the relationship between the auxiliary order variables and the label variables.
 
             \vspace{1em}
-            
-            With this, the bandwidth constraint for an edge $(u,v) \in E$ can be stated in terms of the label variable $x_u^i$ of $u$, and the order variables $G_v$ of $v$:
-            \begin{align}
-                x_u^i &\rightarrow g_v^{i-\text{UB}+1} \\
-                x_u^i &\rightarrow \neg g_v^{i+\text{UB}}
-            \end{align}
-            \[
-            \forall \; (u,v) \in E,\; 1 \le i \le N.
-            \]
-            
-            Since $g_v^k$ is true if $a(v) \ge k$, it expresses a left bound $a(v) \geq k$, while its negation $\neg g_v^k$ expresses a right bound $a(v) < k$. The literal $g_v^{i-\text{UB}+1}$ is trivially true when $i - \text{UB} \le 0$, and $\neg g_v^{i+\text{UB}}$ is trivially true when $i+\text{UB} > N$, so the corresponding clauses are omitted. In total, this encoding takes $O(|E|\cdot N + N^2)$ clauses, $O(|E|\cdot N)$ for the bandwidth constraint and $O(N^2)$ for the consistency and biconditional clauses, compared to $O(|E|\cdot N^2)$ for the direct encoding.
-
-            \vspace{1em}
 
             Note that, by the \textit{biconditional clauses}, $x_u^k$ is true exactly when $g_u^k$ is true \textit{and} $g_u^{k+1}$ is false, which only happens at the point where $G_u$ switches from true to false. Since the constants $g_u^1 = \text{true}$ and $g_u^{N+1} = \text{false}$ guarantee that a switch exists at some point between $k=1$ and $k=N$, and the \textit{consistency clauses} guarantee that there is only one switch, it follows that exactly one $x_u^k$ is true for each vertex $u$. Therefore, the order encoding also ensures that every vertex is assigned exactly one label as a side effect.
 
+            \vspace{1em}
 
-    \subsection{Cyclic bandwidth constraint}
-        In the cyclic variant of BMP, labels lie on a circle and the distance between two labels is:
-        \begin{equation}
-            d(i,j) = \min\bigl(|i-j|,\; N-|i-j|\bigr).
-        \end{equation}
-        Let $a(u)=i$ and $a(v)=j$. An edge $(u,v)\in E$ satisfies the constraint if $d(i,j) \le \text{UB}-1$ (equivalently, $d(i,j) < \text{UB}$). Specifically, for each edge $(u,v)\in E$ and each label $i$ of $u$, the constraint on $v$ depends on whether the range of valid labels for $v$ wraps around the circle:
-        \begin{align}
-            \intertext{\hspace*{\parindent}no wrap $(\text{UB} \le i \le N-\text{UB}+1)$:}
-            x_u^i &\rightarrow g_v^{i-\text{UB}+1} \\
-            x_u^i &\rightarrow \neg g_v^{i+\text{UB}} \\
-            \intertext{\hspace*{\parindent}wraps left $(1 \leq i < \text{UB})$:}
-            x_u^i &\rightarrow (\neg g_v^{i+\text{UB}} \vee g_v^{N+i-\text{UB}+1}) \\
-            \intertext{\hspace*{\parindent}wraps right $(N-\text{UB}+1 < i \leq N)$:}
-            x_u^i &\rightarrow (\neg g_v^{i+\text{UB}-N} \vee g_v^{i-\text{UB}+1})
-        \end{align}
+            With this encoding, for each edge $(u,v)\in E$ and each label $i$ of $u$, and depending on whether the range of valid labels for $v$ wraps around the circle, the label range constraint can be written as follows:
+            \begin{align}
+                \intertext{\hspace*{\parindent}no wrap $(\text{UB} \le i \le N-\text{UB}+1)$:}
+                x_u^i &\rightarrow g_v^{i-\text{UB}+1} \\
+                x_u^i &\rightarrow \neg g_v^{i+\text{UB}} \\
+                \intertext{\hspace*{\parindent}wraps left $(1 \leq i < \text{UB})$:}
+                x_u^i &\rightarrow (\neg g_v^{i+\text{UB}} \vee g_v^{N+i-\text{UB}+1}) \\
+                \intertext{\hspace*{\parindent}wraps right $(N-\text{UB}+1 < i \leq N)$:}
+                x_u^i &\rightarrow (\neg g_v^{i+\text{UB}-N} \vee g_v^{i-\text{UB}+1})
+            \end{align}
 
-        In the wrapping cases the allowed set is a union of two intervals, $[1,\,i+\text{UB}-1] \cup [N+i-\text{UB}+1,\,N]$ when wrapping left, and $[1,\,i+\text{UB}-N-1] \cup [i-\text{UB}+1,\,N]$ when wrapping right. The two wrapping cases cannot occur simultaneously when the upper bound is correctly initialized as $\text{UB} \le \left\lfloor \frac{N}{2} \right\rfloor$. 
-        
-        \vspace{1em}
-        
-        Note that since $d(i,j)$ is symmetric, applying these constraints in one direction ($u \to v$) is sufficient.
+            In the wrapping cases the allowed sets are a union of two intervals, $[1,\,i+\text{UB}-1] \cup [N+i-\text{UB}+1,\,N]$ when wrapping left, and $[1,\,i+\text{UB}-N-1] \cup [i-\text{UB}+1,\,N]$ when wrapping right. The two wrapping cases cannot occur simultaneously when the upper bound is correctly initialized as $\text{UB} \le \left\lfloor \frac{N}{2} \right\rfloor$.
+
+        \paragraph{\textbf{Clause counts.}}
+            Assuming $\text{UB} \le \left\lfloor \frac{N}{2} \right\rfloor$, the allowed label range of $v$ contains $2\,\text{UB}-1$ labels, so for each of the $N$ potential labels $i\in [1,N]$ of $u$: the direct encoding forbids $N-(2\,\text{UB}-1)$ labels of $v$, therefore $N(N-2\,\text{UB}+1)$ clauses are required \textit{per edge}. Additionally, the direct encoding needs roughly $2N$ $\text{AMO}$ clauses (product encoding) and 1 $\text{ALO}$ clause \textit{per vertex} to ensure that each vertex is assigned exactly one label, so the total number of clauses required is about $|E|\cdot N(N-2\,\text{UB}+1) + N(2N+1)$. The order encoding takes roughly 2 clauses for each of the $N-2\,\text{UB}+2$ potential labels $i\in [\text{UB},N-\text{UB}+1]$ of $u$ that don't cause the valid label range of $v$ to wrap, plus 1 clause for each of the $2(\text{UB}-1)$ wrapping cases, therefore about $2N-2\,\text{UB}+2$ clauses are required \textit{per edge}. In addition, for each vertex $u$, it needs: roughly $N$ consistency clauses, $3N$ biconditional clauses, and 2 clauses for the constants $g_u^1$ and $g_u^{N+1}$, which brings the total to around $|E|\cdot (2N-2\,\text{UB}+2) + N(4N+2)$ clauses. This gives $O(|E|\cdot N^2)$ clauses for the direct encoding and $O(|E|\cdot N + N^2)$ for the order encoding.
 
     \subsection{Finding the minimum bandwidth using Incremental SAT}
         In order to find the minimum bandwidth of a graph, we repeatedly try to find assignments that satisfiy a shrinking upper bound until a valid assignment no longer exists. In SAT solving terms, we try to solve a sequence of formulas, each enforcing a smaller $\text{UB}$. Each satisfiable result updates $\text{UB}$ to the bandwidth of the assignment found, and the first UNSAT result proves that the current $\text{UB}$ is already minimal.
