@@ -18,7 +18,7 @@ def cuthill_mckee_layout(GRAPH, N):
     assignment[perm] = np.arange(N)                                        # assignment[u] = position of vertex u
     return assignment
 
-def solve(dataset, use_symmetry_break, use_heuristic_initial_ub, best_ub):
+def solve(dataset, use_symmetry_break, use_heuristic_initial_ub, best_ub, eo_encoding="product"):
     # ============ READ INPUT
     GRAPH = mmread(f"datasets/{dataset}.mtx") 
     N = GRAPH.shape[0]  # num vertices
@@ -35,7 +35,7 @@ def solve(dataset, use_symmetry_break, use_heuristic_initial_ub, best_ub):
 
     # ============ BUILD BASE CLAUSES
     clauses = []
-    injectivity_surjectivity_clauses, _ = injectivity_surjectivity_X(N, X, a_start)
+    injectivity_surjectivity_clauses, _ = injectivity_surjectivity_X(N, X, a_start, eo_encoding)
 
     clauses.extend(injectivity_surjectivity_clauses)
     clauses.extend(monotonic_G(N, G))

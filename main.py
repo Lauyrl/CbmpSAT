@@ -1,8 +1,11 @@
 from cbmp import solve
 import argparse
 import multiprocessing as mp
+import time
 
 def main(dataset, use_symmetry_break, use_heuristic_initial_ub, timeout):
+    t1 = time.perf_counter()
+
     best_ub = mp.Value('i', -1)
     p = mp.Process(target=solve, args=(dataset, use_symmetry_break, use_heuristic_initial_ub, best_ub))
     
@@ -23,6 +26,9 @@ def main(dataset, use_symmetry_break, use_heuristic_initial_ub, timeout):
     else:                 # child crashed
         print("child process crashed with exit code:", p.exitcode, "- lowest bandwidth found:", best_ub.value)
 
+    t2 = time.perf_counter()
+    return best_ub.value, t2-t1
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -38,6 +44,11 @@ if __name__ == "__main__":
     parser.add_argument("--heuristic-ub", 
                         action="store_true", 
                         help="use Cuthill-McKee initial upper bound")
+    parser.add_argument("--eo-encoding",
+                        choices=["pairwise","commander","product"],
+                        default="product",
+                        type=str,
+                        help="encoding used for 'exactly one vertex per label' or 'exactly one label per vertex'")
     args = parser.parse_args()
 
     main(args.dataset, args.symmetry_break, args.heuristic_ub, args.timeout)

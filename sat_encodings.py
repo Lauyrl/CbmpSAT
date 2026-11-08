@@ -49,14 +49,19 @@ def biconditional_X_and_G(N, X, G):
     return clauses
 
 
-# === injectivity and surjectivity X
-def injectivity_surjectivity_X(N, X, a_base):
+# === injectivity and surjectivity X (exactly one  vertex per label)
+def injectivity_surjectivity_X(N, X, a_base, eo_encoding="product"):
     """
     x_u != x_v: X[u][i] -> -X[v][i] == -X[u][i] or -X[v][i]  ==  -X[v][i] or -X[u][i] == X[v][i] -> -X[u][i]  
     """
     clauses = []
     for i in range(N):
-        new_clauses, a_base = exactly_one_commander([X[u][i] for u in range(N)], a_base)
+        if eo_encoding == "commander":
+            new_clauses, a_base = exactly_one_commander([X[u][i] for u in range(N)], a_base)
+        elif eo_encoding == "product":
+            new_clauses, a_base = exactly_one_product([X[u][i] for u in range(N)], a_base)
+        else: raise KeyError()
+
         clauses.extend(new_clauses)
     return clauses, a_base
 
