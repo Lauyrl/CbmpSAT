@@ -3,11 +3,11 @@ import argparse
 import multiprocessing as mp
 import time
 
-def main(dataset, use_symmetry_break, use_heuristic_initial_ub, timeout):
+def main(dataset, use_symmetry_break, use_heuristic_initial_ub, eo_encoding, timeout):
     t1 = time.perf_counter()
 
     best_ub = mp.Value('i', -1)
-    p = mp.Process(target=solve, args=(dataset, use_symmetry_break, use_heuristic_initial_ub, best_ub))
+    p = mp.Process(target=solve, args=(dataset, use_symmetry_break, use_heuristic_initial_ub, best_ub, eo_encoding))
     
     p.start()
     p.join(timeout)       # parent lets this child run for up to [timeout] seconds
@@ -51,4 +51,4 @@ if __name__ == "__main__":
                         help="encoding used for 'exactly one vertex per label' or 'exactly one label per vertex'")
     args = parser.parse_args()
 
-    main(args.dataset, args.symmetry_break, args.heuristic_ub, args.timeout)
+    main(args.dataset, args.symmetry_break, args.heuristic_ub, args.eo_encoding, args.timeout)
