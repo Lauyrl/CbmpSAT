@@ -281,5 +281,5 @@ Kết quả xuất ra file `report/report.pdf` (13 trang, bao gồm đầy đủ
 
 ## 10. Ghi chú mã nguồn cũ (Legacy)
 
-- `legacy/bmp.py`: Là phiên bản triển khai CBMP đời đầu, không còn module nào trong dự án phụ thuộc hoặc import file này. Đã được chuyển vào thư mục `legacy/` để bảo tồn lịch sử phát triển.
+- `bmp.py`: Phiên bản triển khai đời đầu (giống hệt `bmp.py` của Lauyrl/CbmpSAT), giữ ở thư mục gốc để tương thích với repo gốc; không module nào khác import file này.
 
