@@ -9,8 +9,6 @@ This document defines which tracked data is current, which data is historical, a
 | `results/runs.jsonl` + `results/env.json` | 44 records | Current tracked exploratory snapshot | All records carry `git_dirty=true`; source tree cannot be reconstructed from the commit hash alone. Do not label as a clean reproducible benchmark. |
 | `docs/data/runs.jsonl` + `docs/data/env.json` | 207 records | Historical experiment archive | Records identify multiple clean source commits. Preserve as a distinct archive. |
 | `docs/data/runs_ablation.jsonl` | 255 records | Historical ablation archive | Separate archive; records identify commit `89603149159ef65b2b6a5220ad59a80d80a0d09c`. Do not append to `runs.jsonl`. |
-| `docs/pilot/pilot_ablation.csv` | 4 rows | Early pilot summary | Small pilot only; not the current results source. |
-| `docs/calibration/` | CSV + JSONL | Archived calibration output | Historical archive. The script writes new local output to ignored `calibration/`. |
 
 ### Current snapshot composition
 
@@ -47,17 +45,14 @@ The experiment configuration defines 14 groups. In the current 44-record snapsho
 
 This coverage statement is tied to the 44-record snapshot and must be refreshed whenever `results/runs.jsonl` changes.
 
-## 3. Phase archives
+## 3. Retained phase archives
 
-The phase directories are separate research snapshots, not sequential database migrations:
+Only `docs/phaseC/` and `docs/phaseD/` remain in this branch. They are separate historical research snapshots, not sequential database migrations:
 
-- `docs/phaseA/`: initial ablation and cross-validation tables.
-- `docs/phaseA2/`: expanded ablation-family tables and phase summaries.
-- `docs/phaseB/`: solver/method comparison and per-dataset summaries.
-- `docs/phaseC/`: broad method, per-dataset, solver, large-instance and cross-validation outputs. Its cross-validation file records verified optimum agreement across multiple sources.
+- `docs/phaseC/`: method, per-dataset, solver, large-instance and cross-validation outputs. Its cross-validation file records optimum-agreement checks for that archived phase.
 - `docs/phaseD/`: ablation-family, small/medium ablation and phase-decomposition outputs.
 
-A phase directory may contain a table with a similar name to another phase. Similar filenames do not establish identical inputs, run settings, or a replacement relationship. Retain the phase prefix when citing these files.
+Earlier Phase A/A2/B, pilot and calibration artifacts were removed from this branch. They must not be referenced as available files or treated as current evidence. The retained C/D tables are historical snapshots; their presence does not prove that all underlying raw runs are retained or that the current snapshot reproduces them.
 
 ## 4. Report table source mapping
 
@@ -91,7 +86,7 @@ A figure copied into `report/figures/` is not automatically reproducible from th
 
 1. Commit the exact source tree before running a benchmark. Record a clean commit and `git_dirty=false`.
 2. Store the raw JSONL and its environment metadata together in `results/`; do not merge runs from different source commits or incompatible configurations.
-3. Use `docs/data/` and `docs/phase*/` as immutable historical evidence. Do not append new runs to these archives.
+3. Use `docs/data/`, `docs/phaseC/` and `docs/phaseD/` as immutable historical evidence. Do not append new runs to these archives.
 4. Regenerate tables and plots from a single explicitly identified raw input. Record the input file hash, command, source commit and environment.
 5. Update the mapping in this file whenever a report table or figure is replaced.
 6. Treat `UNAVAILABLE`, `SIZE_LIMIT`, `LICENSE_ERROR`, `TIMEOUT` and `FEASIBLE` as distinct solver outcomes. Never infer a timeout or runtime for a solver without a corresponding record.
