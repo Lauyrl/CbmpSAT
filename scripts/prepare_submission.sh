@@ -60,6 +60,7 @@ elif dirty is False: print("[OK] Metadata explicitly records git_dirty=false.")
 else: print("[WARN] Metadata does not explicitly establish a clean working tree.")
 required_tables = (
     Path("results/tables/table_encoding_comparison.csv"),
+    Path("results/tables/table_encoding_comparison_pairs.csv"),
     Path("results/tables/table_exact_solvers.csv"),
     Path("results/tables/table_solvers_medium.csv"),
 )
@@ -79,6 +80,7 @@ with tempfile.TemporaryDirectory(prefix="cbmp-table-audit-") as tmp:
     )
     generated = (
         "table_encoding_comparison.csv",
+        "table_encoding_comparison_pairs.csv",
         "table_exact_solvers.csv",
         "table_solvers_medium.csv",
     )
