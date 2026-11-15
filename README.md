@@ -64,9 +64,7 @@ CBMP/
 │   └── make_subgraphs.py   # Tạo các đồ thị con cảm ứng liên thông
 ├── tests/                  # Bộ test tự động (brute force, baselines, mocked CP/Gurobi, encodings)
 ├── results/                # Snapshot hiện hành: runs.jsonl, env.json, tables/, figures/
-├── docs/                   # Dữ liệu lịch sử theo phase, calibration và provenance
-├── reports/                # Báo cáo audit kỹ thuật
-├── legacy/                 # Mã triển khai cũ, không dùng trong pipeline hiện hành
+├── docs/                   # Provenance, raw archives và phase C/D report evidence
 ├── report/                 # Báo cáo khoa học LaTeX & hình ảnh được chọn
 ├── requirements.txt
 ├── pytest.ini
@@ -233,10 +231,9 @@ Không tạo thêm results_v2/, results/pilot/ hoặc results/final/. Khi chạy
 
 ### Dữ liệu lịch sử trong docs/
 
-- docs/data/: hai raw archives lịch sử (`runs.jsonl`, `runs_ablation.jsonl`) và metadata tương ứng; không phải nguồn mặc định của runner.
-- docs/phaseA/, phaseA2/, phaseB/, phaseC/, phaseD/: bảng và cross-validation theo từng giai đoạn. Đây là các snapshot nghiên cứu độc lập, không tự động gộp hoặc coi phase sau là thay thế phase trước; mapping chi tiết nằm trong `docs/EXPERIMENT_PROVENANCE.md`.
-- docs/pilot/: dữ liệu pilot lịch sử.
-- docs/calibration/: kết quả hiệu chuẩn lịch sử. Khác với output cục bộ calibration/ của scripts/calibrate.py.
+- `docs/data/`: hai raw archives lịch sử (`runs.jsonl`, `runs_ablation.jsonl`) và metadata tương ứng; không phải nguồn mặc định của runner.
+- `docs/phaseC/` và `docs/phaseD/`: các bảng và cross-validation lịch sử được dùng làm bằng chứng nguồn cho các bảng định lượng trong report. Đây là hai snapshot nghiên cứu độc lập, không được tự động gộp.
+- Artifacts của phase A/A2/B, pilot và calibration đã được loại khỏi nhánh này; không trích dẫn chúng như các file còn tồn tại. Các kết luận lịch sử từng dựa trên artifacts đó không còn dữ liệu nguồn kèm theo trong nhánh này.
 
 ### Quy trình cập nhật snapshot
 
@@ -290,12 +287,10 @@ Kết quả biên dịch là `report/report.pdf`. Số trang phụ thuộc nội
 
 ---
 
-## 10. Tài liệu lưu trữ và mã nguồn legacy
+## 10. Tài liệu và provenance
 
-- `docs/EXPERIMENT_PROVENANCE.md` ánh xạ raw archives, phase tables và snapshot hiện hành.
+- `docs/EXPERIMENT_PROVENANCE.md` ánh xạ raw archives, các phase còn được lưu và snapshot hiện hành.
 - `docs/REPORT_ARTIFACTS.md` ánh xạ từng bảng/hình trong report tới nguồn dữ liệu; phân biệt report assets lịch sử với output `results/` hiện hành.
-- `docs/README.md` mô tả vai trò của dữ liệu lịch sử, các phase và quy tắc provenance.
-- `reports/code_quality_audit.md` là báo cáo audit kỹ thuật được giữ lại làm tài liệu tham khảo; cần đọc kèm commit/HEAD ghi trong báo cáo.
-- `legacy/bmp.py` là triển khai CBMP đời đầu, được giữ để tham chiếu lịch sử và không thuộc pipeline hiện hành.
+- `docs/README.md` mô tả phạm vi tài liệu còn được lưu và quy tắc provenance.
 
 **Quy tắc nguồn dữ liệu:** `results/runs.jsonl` cùng `results/env.json` là snapshot hiện hành duy nhất. Dữ liệu dưới `docs/` chỉ là archive; không tự động nối, ghi đè hoặc dùng làm đầu vào mặc định cho pipeline hiện hành.
