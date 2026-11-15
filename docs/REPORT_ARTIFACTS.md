@@ -13,10 +13,10 @@ The following tables are written directly in LaTeX; they are not loaded from res
 | tab:table_methods | SAT / CP-SAT / CPLEX MIP comparison | docs/phaseC/table_methods.csv | Historical seven-instance table; current exact-solver batch covers four small datasets. |
 | tab:table_methods_large | SAT / CP-SAT large-instance comparison | docs/phaseC/table_methods_large.csv | Historical; not regenerated from current snapshot. |
 | tab:table_per_dataset | SAT per-dataset summary | docs/phaseC/table_per_dataset.csv | Historical 16-instance table; not regenerated from current snapshot. |
-| Ablation small table | Five-variant small-graph ablation | docs/phaseD/table_ablation_small.csv | Historical; current snapshot has no ablation-small group. |
-| Ablation medium table | 662_bus_n60 ablation | docs/phaseD/table_ablation_medium.csv | Historical; current snapshot has no ablation-medium group. |
-| Ablation family table | Randomized-label paired comparisons | docs/phaseD/table_ablation_family.csv | Historical; current snapshot has no ablation-family group. |
-| Phase decomposition table | Previous/last iteration timing | docs/phaseD/table_ablation_phases.csv | Historical; current snapshot has no phase-decomposition group. |
+| `tab:table_ablation_small` | Five-variant small-graph ablation | `docs/phaseD/table_ablation_small.csv` | Historical; current snapshot has no ablation-small group. |
+| `tab:table_ablation_medium` | 662_bus_n60 ablation | `docs/phaseD/table_ablation_medium.csv` | Historical; current snapshot has no ablation-medium group. |
+| `tab:table_ablation_family` | Randomized-label paired comparisons | `docs/phaseD/table_ablation_family.csv` | Historical; current snapshot has no ablation-family group. |
+| `tab:table_ablation_phases` | Previous/last iteration timing | `docs/phaseD/table_ablation_phases.csv` | Historical; current snapshot has no phase-decomposition group. |
 
 The files under results/tables/ (for example table_methods.csv, table_solvers.csv, and table_ablation.csv) are generated from the current raw snapshot by analysis/make_tables.py. They have different coverage and aggregation and must not be substituted for report tables solely because their names are similar.
 
