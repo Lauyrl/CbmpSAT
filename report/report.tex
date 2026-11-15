@@ -435,42 +435,30 @@ IBM Corp., ``IBM ILOG CPLEX Optimization Studio CPLEX User's Manual,'' version 2
 \end{thebibliography}
 
 \section*{Data Availability}
-The source code, benchmark datasets, experiment configurations, automated tests,
-analysis scripts, and report source are available on the repository's
-\texttt{final-2} branch:
+The source code, current benchmark datasets, experiment configurations,
+automated tests, analysis scripts, and report source are available at:
 \url{https://github.com/datnk0116/CBMP/tree/final-2}.
 
-The current raw experiment snapshot is stored only at
-\texttt{results/runs.jsonl}, with environment metadata at
-\texttt{results/env.json}. It contains 44 records:
+The latest tracked raw experiment data are stored in
+\texttt{results/runs.jsonl}, with environment metadata in
+\texttt{results/env.json}. The snapshot contains 44 unique records:
 24 \texttt{OPTIMAL}, 12 \texttt{TIMEOUT}, 4 \texttt{UNAVAILABLE},
-3 \texttt{SIZE\_LIMIT}, and 1 \texttt{FEASIBLE}, across
-\texttt{encodings}, \texttt{solvers\_medium}, and \texttt{exact\_solvers}.
-The metadata records source commit
-\texttt{41271c4119a306ace4b42e734093ea773ab30bc2-dirty}. The dirty marker means
-the exact source tree used for these runs is not identified by a clean commit.
-These records are exploratory evidence, not a fully reproducible final benchmark.
+3 \texttt{SIZE\_LIMIT}, and 1 \texttt{FEASIBLE}. The group memberships
+\texttt{encodings}, \texttt{exact\_solvers}, and \texttt{solvers\_medium}
+overlap and must not be summed as unique records.
 
-Historical raw data are retained under \texttt{docs/data/}; selected phase-specific
-tables are retained under \texttt{docs/phaseC/} and \texttt{docs/phaseD/}.
-These are archival research records, not the default input to the current
-experiment pipeline. Earlier Phase A/A2/B, pilot and calibration artifacts
-were removed from this branch and are not available here. The report's
-historical tables are not claimed to have been regenerated from the 44-record snapshot.
+Derived per-instance tables are stored in \texttt{results/tables/}.
+The analysis scripts generate the current SAT-solver and CNSPlots figures
+in \texttt{results/figures/} from the same raw input. To regenerate the
+derived outputs, run:
+\begin{verbatim}
+python analysis/make_tables.py results/runs.jsonl --output-dir results/tables
+python analysis/make_plots.py results/runs.jsonl --output-dir results/figures
+\end{verbatim}
 
-Derived tables and figures for the current snapshot are stored under
-\texttt{results/tables/} and \texttt{results/figures/}. The selected figures
-embedded in the paper are stored under \texttt{report/figures/}. There are no
-separate \texttt{results\_v2/}, \texttt{results/pilot/}, or
-\texttt{results/final/} result archives in the current repository structure.
-
-The experiment runner is configured in \texttt{experiments/configs.yaml}.
-Use \texttt{experiments/run\_experiments.py} with
-\texttt{--record-metadata}; regenerate derived tables and figures from
-\texttt{results/runs.jsonl}. CPLEX MIP, CPLEX CP Optimizer, and Gurobi require
-their corresponding solver binaries and applicable licenses. Missing binaries
-must be reported as \texttt{UNAVAILABLE}; missing or invalid commercial
-entitlements must be reported as \texttt{LICENSE\_ERROR}; neither status
-is a timeout.
+The repository includes CPLEX MIP, CPLEX CP Optimizer, and Gurobi
+implementations. Their results are reported using their recorded solver
+statuses; \texttt{UNAVAILABLE}, \texttt{SIZE\_LIMIT}, and \texttt{FEASIBLE}
+are distinct outcomes and are not treated as timeouts or proven optima.
 
 \end{document}
