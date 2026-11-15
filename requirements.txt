@@ -1,7 +1,7 @@
-# Pinned to environment configuration matching results/env.json
+# Dependency constraints validated in the current macOS arm64 environment (Python 3.12.16).
 python-sat==1.9.dev21
 scipy==1.18.1
-numpy==2.5.4
+numpy>=2.0,<2.5
 ortools==9.15.6755
 docplex==2.32.264
 pytest==9.2.0
@@ -10,3 +10,4 @@ cplex==22.2.0.0
 pandas>=2.0.0
 matplotlib>=3.8.0
 networkx>=3.0
+cnsplots>=0.8.0

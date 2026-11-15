@@ -1,7 +1,15 @@
-__pycache__/*
-.venv/*
-.vscode/*
-ref/*
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.DS_Store
+
+# Virtual environments and local IDE state
+.venv/
+CBMP/
+.vscode/
+
+# LaTeX build products
 *.aux
 *.log
 *.out
@@ -11,37 +19,22 @@ ref/*
 *.synctex.gz
 *.pdf
 
-# python / macOS
-__pycache__/
-*.pyc
-*.py[cod]
-.pytest_cache/
-.DS_Store
-
-# environments
-CBMP/
-.venv/
-
-# experiment outputs (commit bảng/hình cuối cùng sau)
-results/*.jsonl
-results/final/
+# Local references and generated experiment outputs
+ref/
+results_v2/
 results/smoke/
-/results_v2/
-/calibration/
-/pilot_ablation/
+calibration/
+pilot_ablation/
 analysis/tables/
 analysis/figures/
+*.bak
 
-# AI Agent instruction files (local development only)
-AGENT.md
-AGENTS.md
-**/AGENT.md
-**/AGENTS.md
-AGENTSmd
-**/AGENTSmd
-CLAUDE.md
-**/CLAUDE.md
-GEMINI.md
-**/GEMINI.md
-copilot-instructions.md
-**/copilot-instructions.md
+# Keep the curated official archive trackable.
+# Do not ignore results/final: raw runs, metadata, tables and figures belong there.
+
+# Editor and patch backups
+*~
+*.swp
+*.swo
+*.orig
+*.rej

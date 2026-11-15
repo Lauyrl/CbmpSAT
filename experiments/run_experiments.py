@@ -10,10 +10,9 @@ import logging
 import argparse
 import platform
 import subprocess
-import threading
 from pathlib import Path
+from importlib.metadata import PackageNotFoundError, version as package_version
 from typing import Any, Dict
-from concurrent.futures import ThreadPoolExecutor
 
 # Setup module logger
 logger = logging.getLogger("experiments")
@@ -144,15 +143,22 @@ def collect_environment_info(output_path="results_v2/env.json", timeout=None, co
         info["ram_gb"] = "Unknown"
 
     # Solver & Package versions
-    packages = ["python-sat", "scipy", "numpy", "ortools", "docplex", "cplex", "pyyaml", "pytest"]
+    # Record every runtime/analysis dependency so env.json is sufficient to
+    # audit the plotting and table-generation environment as well as solvers.
+    packages = [
+        "python-sat", "scipy", "numpy", "ortools", "docplex", "cplex",
+        "pyyaml", "pytest", "pandas", "matplotlib", "networkx", "cnsplots",
+    ]
     pkg_versions = {}
     for p in packages:
         try:
-            mod_name = "yaml" if p == "pyyaml" else ("pysat" if p == "python-sat" else p)
-            m = __import__(mod_name)
-            pkg_versions[p] = getattr(m, "__version__", "installed")
-        except Exception:
+            # Distribution metadata is more reliable than module __version__
+            # attributes (which are absent for some otherwise installed packages).
+            pkg_versions[p] = package_version(p)
+        except PackageNotFoundError:
             pkg_versions[p] = "not installed"
+        except Exception as exc:
+            pkg_versions[p] = f"version lookup failed: {type(exc).__name__}"
     info["packages"] = pkg_versions
 
     os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
@@ -561,11 +567,7 @@ def build_experiment_plan(
                         elif m_type == "cplex":
                             method = "cplex"
                             solver = "cplex"
-                            # The baseline CLIs default to --sb-rotation (True) and always record
-                            # config.sb_rotation, so an omitted value must resolve to True here;
-                            # otherwise the planned key (flags=()) never matches the recorded key
-                            # (flags=(True,)), breaking --resume and cross-group deduplication.
-                            sb_rot = bool(m.get("sb_rotation", BASELINE_SB_ROTATION_DEFAULT))
+                            sb_rot = bool(m["sb_rotation"]) if "sb_rotation" in m else None
                             flags = (sb_rot,) if sb_rot is not None else ()
                             key = (d["name"], method, solver, flags, seed)
                             cfg_dict = {
@@ -577,11 +579,7 @@ def build_experiment_plan(
                         elif m_type == "cplex_cp":
                             method = "cplex_cp"
                             solver = "cplex_cp"
-                            # The baseline CLIs default to --sb-rotation (True) and always record
-                            # config.sb_rotation, so an omitted value must resolve to True here;
-                            # otherwise the planned key (flags=()) never matches the recorded key
-                            # (flags=(True,)), breaking --resume and cross-group deduplication.
-                            sb_rot = bool(m.get("sb_rotation", BASELINE_SB_ROTATION_DEFAULT))
+                            sb_rot = bool(m["sb_rotation"]) if "sb_rotation" in m else None
                             flags = (sb_rot,) if sb_rot is not None else ()
                             key = (d["name"], method, solver, flags, seed)
                             cfg_dict = {
@@ -593,11 +591,7 @@ def build_experiment_plan(
                         elif m_type == "gurobi":
                             method = "gurobi"
                             solver = "gurobi"
-                            # The baseline CLIs default to --sb-rotation (True) and always record
-                            # config.sb_rotation, so an omitted value must resolve to True here;
-                            # otherwise the planned key (flags=()) never matches the recorded key
-                            # (flags=(True,)), breaking --resume and cross-group deduplication.
-                            sb_rot = bool(m.get("sb_rotation", BASELINE_SB_ROTATION_DEFAULT))
+                            sb_rot = bool(m["sb_rotation"]) if "sb_rotation" in m else None
                             flags = (sb_rot,) if sb_rot is not None else ()
                             key = (d["name"], method, solver, flags, seed)
                             cfg_dict = {
@@ -695,142 +689,8 @@ def build_experiment_plan(
     return plan, group_stats
 
 
-# Default of ``--sb-rotation`` in baselines/{cplex,cplex_cp,gurobi}_cbmp.py CLIs.
-BASELINE_SB_ROTATION_DEFAULT = True
-
 # Methods whose CLI entry points accept ``--relabel-seed``.
 RELABEL_SUPPORTED_METHODS = ("sat", "cpsat")
-
-
-# ---------------------------------------------------------------------------
-# Resource-aware parallel execution helpers
-# ---------------------------------------------------------------------------
-# Each SAT solve spawns its own child process (see main.py), so a worker
-# thread is a single SAT run.  We therefore bound concurrency by *processes*,
-# not threads, and track peak RSS to keep the machine responsive.
-
-def _detect_total_memory_gb():
-    """Return total system memory in GB (float), or None if it cannot be read."""
-    try:
-        if platform.system() == "Darwin":
-            out = subprocess.check_output(["sysctl", "-n", "hw.memsize"], text=True)
-            return float(out.strip()) / (1024 ** 3)
-        with open("/proc/meminfo") as f:
-            for line in f:
-                if line.startswith("MemTotal:"):
-                    return float(line.split()[1]) / (1024.0 * 1024.0)
-    except Exception:
-        return None
-    return None
-
-
-def _detect_available_memory_gb():
-    """Return currently available memory in GB (float), or None if unavailable."""
-    try:
-        if platform.system() == "Darwin":
-            out = subprocess.check_output(["sysctl", "-n", "vm.pageable_size"], text=True)
-            return float(out.strip()) / (1024 ** 3)
-        with open("/proc/meminfo") as f:
-            for line in f:
-                if line.startswith("MemAvailable:"):
-                    return float(line.split()[1]) / (1024.0 * 1024.0)
-    except Exception:
-        return None
-    return None
-
-
-def _detect_peak_rss_gb():
-    """Return peak RSS of the current process tree in GB (float), or None."""
-    try:
-        import psutil
-        return psutil.Process(os.getpid()).memory_info().rss / (1024 ** 3)
-    except Exception:
-        return None
-
-
-def _resolve_worker_count(workers=None, auto_workers=False, max_workers=None,
-                          memory_reserve_gb=1.0, total_memory_gb=None):
-    """
-    Resolve the number of worker threads for parallel experiment execution.
-
-    Rules (applied in order):
-      1. ``workers`` is clamped to ``[1, max_workers]`` when ``max_workers`` is set.
-      2. ``workers=0`` is treated as 1 (a single sequential worker).
-      3. When ``auto_workers`` is True and ``workers`` is None, derive a count
-         from the available memory budget:
-         budget = total_memory - reserve - current_peak_rss
-         workers = max(1, floor(budget / per_worker_estimate_gb))
-      4. When neither ``workers`` nor ``auto_workers`` is set, default to 1.
-    """
-    if max_workers is not None and max_workers < 1:
-        max_workers = 1
-
-    if workers is not None:
-        w = max(1, int(workers))
-        if max_workers is not None:
-            w = min(w, max_workers)
-        return w
-
-    if not auto_workers:
-        return 1
-
-    # Memory-aware auto sizing.
-    if total_memory_gb is None:
-        total_memory_gb = _detect_total_memory_gb()
-    peak_rss = _detect_peak_rss_gb() or 0.0
-    budget = (total_memory_gb or 0.0) - float(memory_reserve_gb) - peak_rss
-    if budget <= 0:
-        return 1
-    # Conservative per-worker estimate: a single SAT solve with the order
-    # encoding on the largest configured graph uses ~0.5-1.5 GB RSS.
-    per_worker = 1.0
-    n = max(1, int(budget // per_worker))
-    if max_workers is not None:
-        n = min(n, max_workers)
-    return n
-
-
-class ResourceMonitor:
-    """Lightweight background sampler of process RSS and system memory."""
-
-    def __init__(self, interval=5.0):
-        self.interval = float(interval)
-        self._stop = threading.Event()
-        self._thread = None
-        self.peak_rss_gb = 0.0
-        self.available_mem_gb = None
-        self._lock = threading.Lock()
-
-    def start(self):
-        if self._thread is not None:
-            return
-        self._stop.clear()
-        self._thread = threading.Thread(target=self._run, daemon=True)
-        self._thread.start()
-
-    def stop(self):
-        self._stop.set()
-        if self._thread is not None:
-            self._thread.join(timeout=1.0)
-            self._thread = None
-
-    def _run(self):
-        while not self._stop.wait(self.interval):
-            try:
-                rss = _detect_peak_rss_gb()
-                if rss is not None:
-                    with self._lock:
-                        self.peak_rss_gb = max(self.peak_rss_gb, rss)
-                avail = _detect_available_memory_gb()
-                if avail is not None:
-                    with self._lock:
-                        self.available_mem_gb = avail
-            except Exception:
-                pass
-
-    def snapshot(self):
-        with self._lock:
-            return self.peak_rss_gb, self.available_mem_gb
 
 
 def _check_relabel_supported(task):
@@ -945,139 +805,6 @@ def format_task_flags(task):
         return "+".join(parts)
     return "-"
 
-def _execute_single_run(task, rep, rep_groups, output_dir, commit_hash, is_dirty, exec_counter):
-    """Run a single experiment task in a subprocess and return its record dict.
-
-    This function is intentionally side-effect free outside its own temp JSON
-    file: it does NOT write to the shared ``runs.jsonl`` and does NOT print.
-    The caller serializes both so that parallel workers never interleave
-    partial JSON lines in the results file.
-    """
-    flags_str = format_task_flags(task)
-    temp_json_path = os.path.join(output_dir, f"_temp_{os.getpid()}_{exec_counter}_{rep}.json")
-    if os.path.exists(temp_json_path):
-        try:
-            os.remove(temp_json_path)
-        except Exception:
-            pass
-
-    cmd = build_task_cmd(task, temp_json_path)
-    task_timeout = task["timeout"]
-
-    t0 = time.perf_counter()
-    timed_out = False
-    returncode = 0
-
-    try:
-        # 10s grace period for child process to flush its own timeout handling
-        popen_kwargs = {
-            "cwd": str(REPO_ROOT),
-            "stdout": subprocess.PIPE,
-            "stderr": subprocess.PIPE,
-            "text": True,
-        }
-        if hasattr(os, "setsid"):
-            popen_kwargs["start_new_session"] = True
-
-        proc = subprocess.Popen(cmd, **popen_kwargs)
-        try:
-            stdout, stderr = proc.communicate(timeout=task_timeout + 10)
-            wall_time = round(time.perf_counter() - t0, 4)
-            returncode = proc.returncode
-        except subprocess.TimeoutExpired:
-            wall_time = round(time.perf_counter() - t0, 4)
-            timed_out = True
-            returncode = -1
-            if hasattr(os, "killpg") and hasattr(os, "getpgid"):
-                try:
-                    os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
-                except (ProcessLookupError, OSError):
-                    pass
-            else:
-                proc.kill()
-            try:
-                proc.communicate(timeout=2)
-            except Exception:
-                pass
-        except KeyboardInterrupt:
-            wall_time = round(time.perf_counter() - t0, 4)
-            timed_out = False
-            returncode = -signal.SIGINT
-            if hasattr(os, "killpg") and hasattr(os, "getpgid"):
-                try:
-                    os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
-                except (ProcessLookupError, OSError):
-                    pass
-            else:
-                proc.kill()
-            try:
-                proc.communicate(timeout=2)
-            except Exception:
-                pass
-    except Exception:
-        wall_time = round(time.perf_counter() - t0, 4)
-        timed_out = False
-        returncode = -1
-
-    # Read child output json if created
-    record = None
-    if os.path.exists(temp_json_path) and os.path.getsize(temp_json_path) > 0:
-        try:
-            with open(temp_json_path, "r", encoding="utf-8") as f:
-                lines = [l.strip() for l in f if l.strip()]
-                if lines:
-                    record = json.loads(lines[-1])
-        except Exception:
-            record = None
-        try:
-            os.remove(temp_json_path)
-        except Exception:
-            pass
-
-    # Fallback if child crashed, timed out, or was interrupted before writing json
-    if record is None:
-        if timed_out:
-            status = "TIMEOUT"
-            diagnostic = f"Process timed out after {task_timeout}s without writing JSON output"
-        elif returncode in (-signal.SIGINT, -signal.SIGTERM, 130, 143):
-            status = "INTERRUPTED"
-            diagnostic = f"Process interrupted by signal (returncode {returncode}) without writing JSON output"
-        else:
-            status = "ERROR"
-            diagnostic = f"Child process exited with code {returncode} without writing JSON output"
-        record = {
-            "dataset": task["dataset"],
-            "N": task["N"],
-            "num_edges": task["M"],
-            "relabel_seed": task.get("relabel_seed"),
-            "config": task["config_dict"],
-            "solver": task["solver"],
-            "status": status,
-            "best_ub": None,
-            "encode_time": 0.0,
-            "solve_time": None,
-            "per_iter_times": [],
-            "num_iterations": 0,
-            "num_vars": 0,
-            "num_clauses": 0,
-            "diagnostic": diagnostic,
-        }
-    elif record.get("best_ub") is None:
-        record["best_ub"] = None
-
-    # Attach parent-measured wall_time, rep, groups, git_commit, git_dirty, relabel_seed
-    record["groups"] = rep_groups
-    record["rep"] = rep
-    record["wall_time"] = wall_time
-    record["git_commit"] = commit_hash
-    record["git_dirty"] = is_dirty
-    if "relabel_seed" not in record or record["relabel_seed"] is None:
-        if task.get("relabel_seed") is not None:
-            record["relabel_seed"] = task["relabel_seed"]
-
-    return record, wall_time, flags_str
-
-
 def run_experiments(
     config_path="experiments/configs.yaml",
     group="all",
@@ -1093,11 +820,6 @@ def run_experiments(
     dry_run=False,
     output_dir="results_v2",
     record_metadata=False,
-    workers=None,
-    auto_workers=False,
-    max_workers=None,
-    memory_reserve_gb=1.0,
-    monitor_resources=False,
 ):
     from scripts.check_datasets import validate_datasets
 
@@ -1142,14 +864,6 @@ def run_experiments(
             config_path=config_path,
             record_metadata=record_metadata,
         )
-
-    # 3b. Resolve worker count for parallel execution
-    n_workers = _resolve_worker_count(
-        workers=workers,
-        auto_workers=auto_workers,
-        max_workers=max_workers,
-        memory_reserve_gb=memory_reserve_gb,
-    )
 
     # 4. Build deduplicated execution plan
     plan, group_stats = build_experiment_plan(
@@ -1281,39 +995,142 @@ def run_experiments(
                 for r in existing_runs.values():
                     f.write(json.dumps(r) + "\n")
 
-    # Filter out already-completed runs when resuming so the parallel
-    # executor only dispatches work that actually needs to be done.
-    pending_queue = []
-    skipped_count = 0
     for task, rep, rep_groups in execution_queue:
+        exec_counter += 1
         key = task["canonical_key"]
+
         if resume and (key, rep) in existing_runs:
-            skipped_count += 1
+            print(f"[{exec_counter}/{total_executions}] Skipping (already completed): {task['dataset']} | {task['solver']} | rep={rep}")
             continue
-        pending_queue.append((task, rep, rep_groups))
 
-    total_executions = len(pending_queue)
-    exec_counter = 0
-
-    # Thread-safe serialization of writes to the shared runs.jsonl file.
-    # Without this lock, concurrent workers would interleave partial JSON
-    # lines and corrupt the results file.
-    runs_lock = threading.Lock()
-
-    def _write_record(record):
-        with runs_lock:
-            with open(runs_file, "a", encoding="utf-8") as f:
-                f.write(json.dumps(record) + "\n")
-
-    def _run_one(task, rep, rep_groups, counter):
-        key = task["canonical_key"]
         flags_str = format_task_flags(task)
-        print(f"[{counter}/{total_executions}] Running {task['dataset']} (N={task['N']}) | {task['solver']} | flags={flags_str} | rep={rep} ...")
+        print(f"[{exec_counter}/{total_executions}] Running {task['dataset']} (N={task['N']}) | {task['solver']} | flags={flags_str} | rep={rep} ...")
 
-        record, wall_time, _ = _execute_single_run(
-            task, rep, rep_groups, output_dir, commit_hash, is_dirty, counter
-        )
-        _write_record(record)
+        temp_json_path = os.path.join(output_dir, f"_temp_{os.getpid()}_{exec_counter}_{rep}.json")
+        if os.path.exists(temp_json_path):
+            try:
+                os.remove(temp_json_path)
+            except Exception:
+                pass
+
+        cmd = build_task_cmd(task, temp_json_path)
+        task_timeout = task["timeout"]
+
+        t0 = time.perf_counter()
+        timed_out = False
+        returncode = 0
+
+        try:
+            # 10s grace period for child process to flush its own timeout handling
+            popen_kwargs = {
+                "cwd": str(REPO_ROOT),
+                "stdout": subprocess.PIPE,
+                "stderr": subprocess.PIPE,
+                "text": True,
+            }
+            if hasattr(os, "setsid"):
+                popen_kwargs["start_new_session"] = True
+
+            proc = subprocess.Popen(cmd, **popen_kwargs)
+            try:
+                stdout, stderr = proc.communicate(timeout=task_timeout + 10)
+                wall_time = round(time.perf_counter() - t0, 4)
+                returncode = proc.returncode
+            except subprocess.TimeoutExpired:
+                wall_time = round(time.perf_counter() - t0, 4)
+                timed_out = True
+                returncode = -1
+                if hasattr(os, "killpg") and hasattr(os, "getpgid"):
+                    try:
+                        os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+                    except (ProcessLookupError, OSError):
+                        pass
+                else:
+                    proc.kill()
+                try:
+                    proc.communicate(timeout=2)
+                except Exception:
+                    pass
+            except KeyboardInterrupt:
+                wall_time = round(time.perf_counter() - t0, 4)
+                timed_out = False
+                returncode = -signal.SIGINT
+                if hasattr(os, "killpg") and hasattr(os, "getpgid"):
+                    try:
+                        os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+                    except (ProcessLookupError, OSError):
+                        pass
+                else:
+                    proc.kill()
+                try:
+                    proc.communicate(timeout=2)
+                except Exception:
+                    pass
+        except Exception:
+            wall_time = round(time.perf_counter() - t0, 4)
+            timed_out = False
+            returncode = -1
+
+        # Read child output json if created
+        record = None
+        if os.path.exists(temp_json_path) and os.path.getsize(temp_json_path) > 0:
+            try:
+                with open(temp_json_path, "r", encoding="utf-8") as f:
+                    lines = [l.strip() for l in f if l.strip()]
+                    if lines:
+                        record = json.loads(lines[-1])
+            except Exception:
+                record = None
+            try:
+                os.remove(temp_json_path)
+            except Exception:
+                pass
+
+        # Fallback if child crashed, timed out, or was interrupted before writing json
+        if record is None:
+            if timed_out:
+                status = "TIMEOUT"
+                diagnostic = f"Process timed out after {task_timeout}s without writing JSON output"
+            elif returncode in (-signal.SIGINT, -signal.SIGTERM, 130, 143):
+                status = "INTERRUPTED"
+                diagnostic = f"Process interrupted by signal (returncode {returncode}) without writing JSON output"
+            else:
+                status = "ERROR"
+                diagnostic = f"Child process exited with code {returncode} without writing JSON output"
+            record = {
+                "dataset": task["dataset"],
+                "N": task["N"],
+                "num_edges": task["M"],
+                "relabel_seed": task.get("relabel_seed"),
+                "config": task["config_dict"],
+                "solver": task["solver"],
+                "status": status,
+                "best_ub": None,
+                "encode_time": 0.0,
+                "solve_time": None,
+                "per_iter_times": [],
+                "num_iterations": 0,
+                "num_vars": 0,
+                "num_clauses": 0,
+                "diagnostic": diagnostic,
+            }
+        elif record.get("best_ub") is None:
+            record["best_ub"] = None
+
+        # Attach parent-measured wall_time, rep, groups, git_commit, git_dirty, relabel_seed
+        record["groups"] = rep_groups
+        record["rep"] = rep
+        record["wall_time"] = wall_time
+        record["git_commit"] = commit_hash
+        record["git_dirty"] = is_dirty
+        if "relabel_seed" not in record or record["relabel_seed"] is None:
+            if task.get("relabel_seed") is not None:
+                record["relabel_seed"] = task["relabel_seed"]
+
+        # Append record
+        with open(runs_file, "a", encoding="utf-8") as f:
+            f.write(json.dumps(record) + "\n")
+
         if resume:
             existing_runs[(key, rep)] = record
 
@@ -1327,41 +1144,6 @@ def run_experiments(
             st_disp = "-"
         wt_disp = f"{float(wall_time):.3f}s" if (isinstance(wall_time, (int, float)) and not isinstance(wall_time, bool) and math.isfinite(wall_time)) else "-"
         print(f"       -> {status_str} {ub_str} (solve_time: {st_disp}, wall_time: {wt_disp})")
-
-    # Optional background resource monitor (RSS + available memory sampling).
-    monitor = ResourceMonitor() if monitor_resources else None
-    if monitor is not None:
-        monitor.start()
-
-    try:
-        if n_workers <= 1:
-            # Sequential fallback: preserves the original single-threaded
-            # behaviour exactly, including the exec_counter ordering.
-            for task, rep, rep_groups in pending_queue:
-                exec_counter += 1
-                _run_one(task, rep, rep_groups, exec_counter)
-        else:
-            # Parallel execution via a thread pool. Each task runs its own
-            # subprocess (subprocess.Popen with start_new_session), so the
-            # SAT solver processes are fully isolated from one another.
-            with ThreadPoolExecutor(max_workers=n_workers) as pool:
-                futures = {}
-                for task, rep, rep_groups in pending_queue:
-                    exec_counter += 1
-                    fut = pool.submit(_run_one, task, rep, rep_groups, exec_counter)
-                    futures[fut] = (task, rep)
-
-                for fut in futures:
-                    fut.result()
-    finally:
-        if monitor is not None:
-            monitor.stop()
-            rss, avail = monitor.snapshot()
-            print(f"[ResourceMonitor] peak RSS: {rss:.2f} GB, available memory: "
-                  f"{f'{avail:.2f} GB' if avail is not None else 'n/a'}")
-
-    if skipped_count:
-        print(f"Skipped {skipped_count} already-completed run(s) (resume mode).")
 
     print(f"\nExperiment execution finished. All results saved in: {runs_file}")
 
@@ -1403,11 +1185,6 @@ if __name__ == "__main__":
     parser.add_argument("--dry-run", action="store_true", help="list planned runs without executing")
     parser.add_argument("--output-dir", type=str, default="results_v2", help="directory to store results")
     parser.add_argument("--record-metadata", action="store_true", default=False, help="record timeout, git commit hash, and config path into env.json and runs.jsonl header")
-    parser.add_argument("--workers", type=int, default=None, help="number of worker threads for parallel execution (default: 1)")
-    parser.add_argument("--auto-workers", action="store_true", default=False, help="derive worker count from available memory budget")
-    parser.add_argument("--max-workers", type=int, default=None, help="cap for worker count (used with --auto-workers or --workers)")
-    parser.add_argument("--memory-reserve-gb", type=float, default=1.0, help="GB of RAM to keep free when sizing workers with --auto-workers")
-    parser.add_argument("--monitor-resources", action="store_true", default=False, help="sample process RSS and available memory during execution")
     args = parser.parse_args()
 
     run_experiments(
@@ -1425,9 +1202,4 @@ if __name__ == "__main__":
         dry_run=args.dry_run,
         output_dir=args.output_dir,
         record_metadata=args.record_metadata,
-        workers=args.workers,
-        auto_workers=args.auto_workers,
-        max_workers=args.max_workers,
-        memory_reserve_gb=args.memory_reserve_gb,
-        monitor_resources=args.monitor_resources,
     )

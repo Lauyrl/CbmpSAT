@@ -7,7 +7,7 @@ A research and evaluation repository for solving the **Cyclic Bandwidth Minimiza
 ## 1. Cài đặt (Installation)
 
 ### Yêu cầu hệ thống
-- Python 3.10+ (đã kiểm thử trên Python 3.14 macOS arm64).
+- Python 3.10+; môi trường chạy gần nhất đã xác minh: Python 3.12.16 trên macOS 15.7.4 arm64 (Apple M4, RAM 16 GB).
 - Bộ giải SAT: `pysat` (tích hợp CaDiCaL 195, Glucose 4, MapleChrono, MiniSat 2.2, Lingeling).
 - CP-SAT: `ortools`.
 - MIP: `docplex` và `cplex` (Community Edition giới hạn <= 1000 biến & ràng buộc hoặc bản thương mại/học thuật đầy đủ).
@@ -17,25 +17,20 @@ A research and evaluation repository for solving the **Cyclic Bandwidth Minimiza
 ### Khởi tạo môi trường ảo và cài đặt thư viện
 ```bash
 # Tạo môi trường ảo
-python3 -m venv venv
-source venv/bin/activate
+python3 -m venv .venv
+source .venv/bin/activate
 
 # Cài đặt các gói theo requirements.txt (đã ghim phiên bản chuẩn)
 pip install -r requirements.txt
 ```
 
-Các phiên bản đã ghim tương thích với `results/env.json`:
-- `python-sat==1.9.dev21`
-- `scipy==1.18.1`
-- `numpy==2.5.4`
-- `ortools==9.15.6755`
-- `docplex==2.32.264`
-- `cplex==22.2.0.0`
-- `pytest==9.2.0`
-- `pyyaml==6.0.3`
-- `pandas>=2.0.0`
-- `matplotlib>=3.8.0`
-- `networkx>=3.0`
+Các phiên bản quan sát được trong môi trường chạy gần nhất (không phải tất cả đều được ghim cứng trong `requirements.txt`):
+- `python-sat==1.9.dev21`, `scipy==1.18.1`, `numpy==2.4.6`
+- `ortools==9.15.6755`, `docplex==2.32.264`, `cplex==22.2.0.0`
+- `pytest==9.2.0`, `pyyaml==6.0.3`
+- `pandas==2.3.3`, `matplotlib==3.11.2`, `networkx==3.7`, `cnsplots==0.8.0`
+
+Lưu ý: `results/pilot/env.json` là metadata của một lần chạy cũ (Python 3.14.7 / NumPy 2.5.4), không đại diện cho môi trường gần nhất và không tương thích với giới hạn NumPy hiện tại trong `requirements.txt`. Mỗi lần chạy mới cần giữ kèm `env.json` riêng.
 
 ---
 
@@ -68,8 +63,8 @@ CBMP/
 │   ├── calibrate.py        # Thử nghiệm hiệu chuẩn thời gian và tài nguyên
 │   └── make_subgraphs.py   # Tạo các đồ thị con cảm ứng liên thông
 ├── tests/                  # Bộ test tự động (brute force, baselines, mocked CP/Gurobi, encodings)
-├── results/                # Kết quả chạy thực nghiệm gốc
-├── results_v2/             # Kết quả chạy thực nghiệm phiên bản v2 (runs.jsonl, tables/, figures/)
+├── results/                # Kết quả và archive thực nghiệm đã chọn lọc
+├── results_v2/             # Kết quả chạy tạm; mặc định bị loại khỏi Git
 ├── report/                 # Báo cáo khoa học LaTeX & hình ảnh
 ├── requirements.txt
 ├── pytest.ini
@@ -123,7 +118,7 @@ Nếu thiếu file (ví dụ chưa có `14_bus.mtx`), script sẽ báo lỗi rõ
 
 ## 5. Chạy thực nghiệm (Running Experiments)
 
-File cấu hình tại `experiments/configs.yaml` định nghĩa 6 nhóm thực nghiệm. Runner `experiments/run_experiments.py` tự động khử trùng lặp các tác vụ dùng chung cấu hình. Mặc định toàn bộ kết quả được ghi vào thư mục `results_v2/` (đã được cấu hình trong `.gitignore`). Bạn có thể tùy chỉnh thư mục xuất qua cờ `--output-dir`.
+File cấu hình tại `experiments/configs.yaml` định nghĩa nhiều nhóm thực nghiệm (SAT solver comparison, exact-solver comparison, encoding comparison, ablation và các nhóm mở rộng). Runner `experiments/run_experiments.py` tự động khử trùng lặp các tác vụ dùng chung cấu hình. Mặc định toàn bộ kết quả được ghi vào thư mục `results_v2/` (được cấu hình trong `.gitignore`, không tự động commit). Bạn có thể tùy chỉnh thư mục xuất qua cờ `--output-dir`.
 
 ### Xem trước kế hoạch chạy (Dry Run)
 ```bash
@@ -166,7 +161,8 @@ python experiments/run_experiments.py --group solvers_small --output-dir results
 # Chạy kèm cờ resume (mặc định chỉ bỏ qua các record đã chạy trong runs.jsonl)
 python experiments/run_experiments.py --group all --resume
 
-# Chạy lại các bài toán bị thất bại (TIMEOUT hoặc ERROR) từ runs.jsonl
+# Chạy lại các bài toán lỗi/tạm dừng (TIMEOUT, MEMOUT, ERROR, INTERRUPTED, UNKNOWN,
+# hoặc FEASIBLE không có incumbent hợp lệ) từ runs.jsonl
 python experiments/run_experiments.py --group all --resume --retry-failed
 
 # Ép buộc resume khi git commit hash hiện tại khác với commit trong runs.jsonl
@@ -181,10 +177,10 @@ python experiments/run_experiments.py --group all --record-metadata
 > - Mỗi bản ghi trong `runs.jsonl` được tự động gắn git commit hash và cờ repo dirty (`git_commit`, `git_dirty`).
 > - `--resume`: Kiểm tra commit hash của các kết quả cũ. Nếu commit hash khác với commit hiện tại của repo, runner sẽ từ chối chạy để tránh trộn lẫn kết quả của các phiên bản mã nguồn khác nhau.
 > - `--force-resume`: Cho phép bỏ qua kiểm tra commit hash và tiếp tục chạy resume.
-> - `--retry-failed`: Mặc định `--resume` bỏ qua tất cả kết quả đã ghi. Khi thêm `--retry-failed`, runner bảo toàn các kết quả hoàn chỉnh (`OPTIMAL`, `INFEASIBLE`, `SIZE_LIMIT`), các trường hợp môi trường chưa cài đặt solver (`UNAVAILABLE`, `LICENSE_ERROR`), và nghiệm khả thi hợp lệ (`FEASIBLE` với `best_ub >= 0`), đồng thời tự động chạy lại các cấu hình thất bại tạm thời (`TIMEOUT`, `ERROR`, `INTERRUPTED`).
+> - `--retry-failed`: Mặc định `--resume` bỏ qua mọi record đã có, kể cả timeout/interrupted. Khi thêm `--retry-failed`, runner giữ lại kết quả `OPTIMAL` hợp lệ, `INFEASIBLE`, `SIZE_LIMIT`, `UNAVAILABLE`, `LICENSE_ERROR` và `FEASIBLE` có incumbent hợp lệ; runner chạy lại `TIMEOUT`, `MEMOUT`, `ERROR`, `INTERRUPTED`, `UNKNOWN`, `FEASIBLE` thiếu incumbent hợp lệ và record có `validation_error`.
 
 > [!NOTE]
-> Mặc định runner ghi dữ liệu vào `results_v2/` và không can thiệp vào `results/`.
+> Mặc định runner ghi dữ liệu vào `results_v2/` và không can thiệp vào `results/`. Thư mục `results_v2/` là vùng làm việc tạm, không phải official archive. Batch 44 records hiện tại đã được commit để bảo toàn bằng chứng kiểm tra; `.gitignore` chỉ ngăn các output mới chưa được track, không tự bỏ theo dõi những file đã commit.
 > Sử dụng cờ `--record-metadata` khi chạy runner để tự động lưu git commit hash, timeout, và đường dẫn cấu hình vào `results_v2/env.json` cũng như đầu file `results_v2/runs.jsonl`.
 
 ---
@@ -222,23 +218,24 @@ python analysis/make_plots.py results_v2/runs.jsonl --output-dir results_v2/figu
 
 ## 7. Hoàn thiện kết quả (Finalize)
 
-Khi toàn bộ thực nghiệm sạch trong `results_v2/` đã hoàn thành và được kiểm chứng hợp lệ:
-1. Lưu trữ kết quả pilot cũ (chạy trên 4 đồ thị: `14_bus`, `30_bus`, `494_bus`, `662_bus`, timeout 60s, không ghi `git_commit`):
-   - Để tránh lồng thư mục (do `results/` cũ đang chứa thư mục con `results/pilot/` bên trong):
-     ```bash
-     # Nếu results/pilot tồn tại, tách riêng thư mục pilot trước:
-     git mv results/pilot results_pilot
+**Trạng thái dữ liệu tại branch hiện tại (15/11/2026):** `results_v2/` đang có 44 records (24 OPTIMAL, 12 TIMEOUT, 4 UNAVAILABLE, 3 SIZE_LIMIT, 1 FEASIBLE), thuộc các nhóm `encodings`, `exact_solvers` và `solvers_medium`. Metadata ghi nhận commit nguồn `41271c4119a306ace4b42e734093ea773ab30bc2-dirty`; do đó đây là dữ liệu từ working tree dirty, chưa đủ điều kiện gắn nhãn reproducible/final. Không chuyển nguyên trạng thành `results/final/`. Cần tái chạy hoặc xác minh snapshot mã nguồn dirty trước khi phát hành official archive.
 
-     # Sau đó di chuyển phần còn lại (bảng biểu, đồ thị cũ):
-     git mv results results_pilot_tables
-     ```
-     *(Ghi chú: Nếu di chuyển trực tiếp cả thư mục thì dùng `git mv results results_pilot_old`, chứa results/pilot/ lồng bên trong).*
-2. Sao chép kết quả chính thức từ `results_v2/` sang `results/` và commit:
+Chỉ phát hành official archive sau khi tất cả điều kiện sau được thỏa mãn:
+1. Chốt và commit mã nguồn sạch; không chạy benchmark khi working tree dirty.
+2. Chạy các nhóm còn thiếu hoặc retry các trạng thái tạm thời theo đúng cấu hình, trên cùng commit sạch.
+3. Lưu metadata mới, trong đó `git_commit` phải trùng HEAD và `git_dirty` phải là `false`.
+4. Kiểm tra từng JSONL record, independent solution validation, matched pairs, timeout/license statuses và đối chiếu bảng/hình.
+5. Chỉ sau khi các kiểm tra trên đạt, sao chép raw runs và metadata vào `results/final/`, sinh lại tables/figures từ đúng archive, rồi commit:
    ```bash
-   cp -r results_v2 results
-   git add results_pilot results_pilot_tables results
-   git commit -m "chore: archive pilot results and commit finalized experiment results"
+   mkdir -p results/final
+   cp results_v2/runs.jsonl results/final/runs.jsonl
+   cp results_v2/env.json results/final/env.json
+   python analysis/make_tables.py results/final/runs.jsonl --output-dir results/final/tables
+   python analysis/make_plots.py results/final/runs.jsonl --output-dir results/final/figures
+   git add results/final
+   git commit -m "data: archive validated final CBMP experiments"
    ```
+Không dùng các lệnh trên với batch hiện tại vì metadata của nó ghi `git_dirty=true`.
 
 ---
 
@@ -275,11 +272,16 @@ pdflatex -interaction=nonstopmode report.tex
 pdflatex -interaction=nonstopmode report.tex
 ```
 
-Kết quả xuất ra file `report/report.pdf` (13 trang, bao gồm đầy đủ tóm tắt, mô hình toán học Order Encoding & Commander Encoding, phá đối xứng quay & phản xạ, bảng số liệu thực nghiệm, phân tích pha và biểu đồ hiệu năng).
+Kết quả biên dịch là `report/report.pdf`. Số trang phụ thuộc nội dung và phiên bản LaTeX; không hard-code số trang trong README. Trước khi nộp, cần biên dịch sạch và kiểm tra các bảng/hình được sinh từ đúng bộ raw results đã lưu trữ.
 
 ---
 
-## 10. Ghi chú mã nguồn cũ (Legacy)
+## 10. Ghi chú về tài liệu audit và mã nguồn cũ
 
-- `bmp.py`: Phiên bản triển khai đời đầu (giống hệt `bmp.py` của Lauyrl/CbmpSAT), giữ ở thư mục gốc để tương thích với repo gốc; không module nào khác import file này.
+- `reports/code_quality_audit.md` là báo cáo audit kỹ thuật được giữ lại làm tài liệu tham khảo lịch sử. Các ghi chú audit ngắn từ `fix/audit4` đã được loại bỏ vì chỉ lặp lại trạng thái branch/HEAD/test cũ.
+- Backup JSONL cũ trong `results_v2/` không còn được giữ cạnh file dữ liệu chính; lịch sử đầy đủ vẫn có trong Git commit trước khi dọn. File `runs.jsonl` hiện tại và `env.json` được giữ nguyên.
+
+## 11. Ghi chú mã nguồn cũ (Legacy)
+
+- `legacy/bmp.py`: Là phiên bản triển khai CBMP đời đầu, không còn module nào trong dự án phụ thuộc hoặc import file này. Đã được chuyển vào thư mục `legacy/` để bảo tồn lịch sử phát triển.
 
