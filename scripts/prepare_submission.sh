@@ -67,6 +67,32 @@ for table in required_tables:
     if not table.is_file() or table.stat().st_size == 0:
         raise SystemExit(f"[BLOCKER] Required current-snapshot table is missing or empty: {table}")
     print(f"[OK] Current result table present: {table}")
+
+# Regenerate the three deterministic CSVs from the tracked raw snapshot in a
+# temporary directory and require an exact match with committed artifacts.
+import subprocess
+import tempfile
+with tempfile.TemporaryDirectory(prefix="cbmp-table-audit-") as tmp:
+    subprocess.run(
+        [sys.executable, "analysis/make_tables.py", "results/runs.jsonl", "--output-dir", tmp],
+        check=True,
+    )
+    generated = (
+        "table_encoding_comparison.csv",
+        "table_exact_solvers.csv",
+        "table_solvers_medium.csv",
+    )
+    for name in generated:
+        expected = Path("results/tables") / name
+        actual = Path(tmp) / name
+        if not actual.is_file():
+            raise SystemExit(f"[BLOCKER] Table generator did not create {name}")
+        if expected.read_bytes() != actual.read_bytes():
+            raise SystemExit(
+                f"[BLOCKER] {expected} differs from regenerated output based on results/runs.jsonl"
+            )
+        print(f"[OK] {name} matches regenerated current-snapshot output")
+
 if not Path("results/figures").is_dir():
     print("[INFO] results/figures/ will be created by analysis/make_plots.py")
 PY
