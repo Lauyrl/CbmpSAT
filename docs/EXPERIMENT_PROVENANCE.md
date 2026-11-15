@@ -74,7 +74,13 @@ A figure copied into `report/figures/` is not automatically reproducible from th
 6. Treat `UNAVAILABLE`, `SIZE_LIMIT`, `LICENSE_ERROR`, `TIMEOUT` and `FEASIBLE` as distinct solver outcomes. Never infer a timeout or runtime for a solver without a corresponding record.
 7. Do not call the current 44-record snapshot a final/reproducible benchmark until it is replaced by or supplemented with a clean, fully documented run.
 
-## 6. Snapshot identity at the time this document was written
+## 7. Distinguish report assets from current generated outputs
+
+The LaTeX report does not automatically include files from `results/tables/` or `results/figures/`. Its numerical tables are embedded directly in `report/report.tex`, and its included image assets are under `report/figures/`. The files with generic names under `results/tables/` are separate outputs generated from the current `results/runs.jsonl`; matching names such as `table_methods` do not mean they are the report's source. See `docs/REPORT_ARTIFACTS.md` for the explicit table-label and figure-file mapping.
+
+Never describe a current generated table as the source of a historical report table unless the report is deliberately updated from that exact file and the raw input, generation command, source commit, and environment are recorded.
+
+## 8. Snapshot identity at the time this document was written
 
 - Current raw input: `results/runs.jsonl`
 - Environment metadata: `results/env.json`

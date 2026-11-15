@@ -227,7 +227,7 @@ Repository chỉ sử dụng **một thư mục kết quả hiện hành: result
 - results/tables/: bảng CSV/LaTeX được sinh từ raw records.
 - results/figures/: biểu đồ được sinh từ raw records.
 
-Snapshot đang được lưu có 44 records: 24 OPTIMAL, 12 TIMEOUT, 4 UNAVAILABLE, 3 SIZE_LIMIT và 1 FEASIBLE; thuộc ba nhóm `encodings` (4), `exact_solvers` (24) và `solvers_medium` (20). Đây là thống kê của snapshot tại thời điểm ghi trong `results/env.json`, không phải cam kết số lượng bất biến. Metadata ghi nhận source commit `41271c4119a306ace4b42e734093ea773ab30bc2-dirty`; do đó snapshot là exploratory archive, không phải benchmark được tái lập từ source commit sạch. Xem `docs/EXPERIMENT_PROVENANCE.md` trước khi sử dụng số liệu trong report.
+Snapshot đang được lưu có 44 records: 24 OPTIMAL, 12 TIMEOUT, 4 UNAVAILABLE, 3 SIZE_LIMIT và 1 FEASIBLE; thuộc ba nhóm `encodings` (4), `exact_solvers` (24) và `solvers_medium` (20). Đây là thống kê của snapshot tại thời điểm ghi trong `results/env.json`, không phải cam kết số lượng bất biến. Metadata ghi nhận source commit `41271c4119a306ace4b42e734093ea773ab30bc2-dirty`; do đó snapshot là exploratory archive, không phải benchmark được tái lập từ source commit sạch. Xem `docs/EXPERIMENT_PROVENANCE.md` và `docs/REPORT_ARTIFACTS.md` trước khi sử dụng số liệu trong report. **Các bảng trong `results/tables/` là output phân tích snapshot hiện hành, không phải nguồn của các bảng LaTeX đang trình bày trong report.**
 
 Không tạo thêm results_v2/, results/pilot/ hoặc results/final/. Khi chạy tiếp, dùng cùng results/; runner hỗ trợ resume và kiểm tra commit để tránh trộn dữ liệu không tương thích.
 
@@ -252,6 +252,7 @@ python analysis/make_plots.py results/runs.jsonl --output-dir results/figures
 ```
 
 6. Nếu metadata ghi nhận dirty source, giữ nhãn exploratory; không tuyên bố reproducible/final.
+7. Không chép trực tiếp bảng `results/tables/` vào report nếu chưa cập nhật provenance và xác minh cùng phạm vi dữ liệu. Bản đồ nguồn từng bảng/hình trong report nằm tại `docs/REPORT_ARTIFACTS.md`.
 ## 8. Chạy kiểm thử tự động (Running Tests)
 
 Toàn bộ các thuật toán và mô hình được kiểm thử tự động bằng `pytest`:
@@ -291,7 +292,8 @@ Kết quả biên dịch là `report/report.pdf`. Số trang phụ thuộc nội
 
 ## 10. Tài liệu lưu trữ và mã nguồn legacy
 
-- `docs/EXPERIMENT_PROVENANCE.md` ánh xạ raw archives, phase tables và report tables; phân biệt rõ snapshot hiện hành với kết quả lịch sử.
+- `docs/EXPERIMENT_PROVENANCE.md` ánh xạ raw archives, phase tables và snapshot hiện hành.
+- `docs/REPORT_ARTIFACTS.md` ánh xạ từng bảng/hình trong report tới nguồn dữ liệu; phân biệt report assets lịch sử với output `results/` hiện hành.
 - `docs/README.md` mô tả vai trò của dữ liệu lịch sử, các phase và quy tắc provenance.
 - `reports/code_quality_audit.md` là báo cáo audit kỹ thuật được giữ lại làm tài liệu tham khảo; cần đọc kèm commit/HEAD ghi trong báo cáo.
 - `legacy/bmp.py` là triển khai CBMP đời đầu, được giữ để tham chiếu lịch sử và không thuộc pipeline hiện hành.
