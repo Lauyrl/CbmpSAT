@@ -1195,10 +1195,8 @@ def load_records(jsonl_source=None, strict=False):
         files = [preferred] if os.path.exists(preferred) else sorted(glob.glob(os.path.join(jsonl_source, "*.jsonl")))
     elif os.path.exists("results/runs.jsonl"):
         files = ["results/runs.jsonl"]
-    elif os.path.exists("results/runs.jsonl"):
-        files = ["results/runs.jsonl"]
     else:
-        files = sorted(glob.glob("results/*.jsonl")) or sorted(glob.glob("results/*.jsonl"))
+        files = sorted(glob.glob("results/*.jsonl"))
 
     if not files:
         logger.warning("load_records: no JSONL files found.")
