@@ -595,33 +595,17 @@ def main():
             if os.path.isfile(stale_path):
                 os.remove(stale_path)
 
-    # 1. Cactus plots for groups
-    plot_cactus(
-        records,
-        group_name="solvers_small",
-        category_key=lambda r: r.get("solver", "unknown"),
-        title="Cactus Plot: Solvers (Small Graphs)",
-        base_filename="cactus_solvers_small",
-        output_dirs=output_dirs,
-    )
+    # Cactus plot for current medium SAT solver comparison.
     plot_cactus(
         records,
         group_name="solvers_medium",
         category_key=lambda r: r.get("solver", "unknown"),
-        title="Cactus Plot: Solvers (Medium Graphs)",
+        title="Cactus Plot: SAT Solvers on Medium Instances",
         base_filename="cactus_solvers_medium",
         output_dirs=output_dirs,
     )
 
-    plot_cactus(
-        records,
-        group_name="methods",
-        category_key=lambda r: "cpsat" if r.get("solver", "").lower() in ("cp_sat", "cpsat") else ("cplex" if r.get("solver", "").lower() == "cplex" else f"sat ({r.get('solver')})"),
-        title="Cactus Plot: Methods Comparison",
-        base_filename="cactus_methods",
-        output_dirs=output_dirs,
-    )
-
+    # Cactus plot for current exact-solver comparison.
     plot_cactus(
         records,
         group_name="exact_solvers",
@@ -635,39 +619,9 @@ def main():
         output_dirs=output_dirs,
     )
 
-    plot_cactus(
-        records,
-        group_name="ablation_small",
-        category_key=lambda r: get_ablation_var_name(r.get("config", {})),
-        title="Cactus Plot: Ablation (Small Graphs)",
-        base_filename="cactus_ablation_small",
-        output_dirs=output_dirs,
-    )
-    plot_cactus(
-        records,
-        group_name="ablation_medium",
-        category_key=lambda r: get_ablation_var_name(r.get("config", {})),
-        title="Cactus Plot: Ablation (Medium Graph)",
-        base_filename="cactus_ablation_medium",
-        output_dirs=output_dirs,
-    )
-
-    # 2. Scatter log-log
-    plot_scatter_sb_vs_nosb(records, group_name="ablation_small", base_filename="scatter_sb_vs_nosb_small", title="Solve Time: No Symmetry Breaking vs With Symmetry Breaking (Small Graphs)", output_dirs=output_dirs)
-
-    # 3. Ablation median time bar chart
-    plot_ablation_median_time(records, group_name="ablation_small", base_filename="ablation_median_time_small", title="Ablation Study: Median Solve Time Across Configurations (Small Graphs)", output_dirs=output_dirs)
-    plot_ablation_median_time(records, group_name="ablation_medium", base_filename="ablation_median_time_medium", title="Ablation Study: Solve Time Across Configurations (662_bus_n60)", output_dirs=output_dirs)
-
-    # 4. Iterations & UNSAT time
-    plot_ablation_iterations_and_unsat(records, group_name="ablation_small", base_filename="ablation_iterations_and_unsat_small", title="Impact of Symmetry Breaking on SAT Iterations and UNSAT Proof Time (Small Graphs)", output_dirs=output_dirs)
-    plot_ablation_iterations_and_unsat(records, group_name="ablation_medium", base_filename="ablation_iterations_and_unsat_medium", title="Impact of Symmetry Breaking on SAT Iterations and UNSAT Proof Time (662_bus_n60)", output_dirs=output_dirs)
-
-    # 5. CNSPlots-based encoding comparison (uses measured OPTIMAL records only)
+    # CNSPlots encoding view is generated from current Order/Pairwise records
+    # present in either the standalone encoding or exact-solver group.
     plot_encoding_comparison(records, output_dirs=output_dirs)
-
-    # 5. Ablation Family boxplots
-    plot_ablation_family_boxplots(records, base_filename="boxplot_ablation_family", output_dirs=output_dirs)
 
     print(f"\nAll figures generated successfully in {output_dir}/!")
 
