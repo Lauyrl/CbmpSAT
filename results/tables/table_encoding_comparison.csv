@@ -1,0 +1,5 @@
+dataset,N,edges,order_status,order_ub,order_solve_time_s,order_wall_time_s,order_vars,order_clauses,pairwise_status,pairwise_ub,pairwise_solve_time_s,pairwise_wall_time_s,pairwise_vars,pairwise_clauses,pairwise_over_order_runtime
+14_bus,14,20,OPTIMAL,3,0.000223,0.584600,504,2657,OPTIMAL,3,0.000446,0.588600,392,7232,1.9953
+30_bus,30,39,OPTIMAL,4,0.042767,0.623400,2310,14455,OPTIMAL,4,0.113317,0.732500,1860,100276,2.6497
+494_bus_n40,40,52,OPTIMAL,5,0.947735,1.555700,4080,46361,OPTIMAL,5,0.920627,1.747800,3280,492301,0.9714
+662_bus_n40,40,50,OPTIMAL,7,0.871398,1.475300,4080,35641,OPTIMAL,7,14.770329,15.517000,3280,331821,16.9501
