@@ -17,13 +17,8 @@ Do not concatenate historical JSONL files with `results/runs.jsonl` unless a del
 | `docs/data/env.json` | Environment metadata associated with the historical raw runs | Provenance metadata for that historical collection |
 | `docs/data/runs.jsonl` | Historical experiment records (207 records in the audited snapshot) | Raw historical runs; not the current snapshot |
 | `docs/data/runs_ablation.jsonl` | Historical ablation records (255 records in the audited snapshot) | Raw historical ablation runs; not the current snapshot |
-| `docs/phaseA/` | Ablation iteration data, cross-validation and small/medium ablation tables | Phase-specific historical outputs |
-| `docs/phaseA2/` | Cross-validation and ablation-family/per-graph/phase tables | Follow-up historical ablation outputs |
-| `docs/phaseB/` | Cross-validation, methods, per-dataset and solver tables | Phase-specific historical comparison outputs |
 | `docs/phaseC/` | Cross-validation, lower-bound check, methods and solver tables (CSV/TeX) | Expanded historical analysis outputs |
 | `docs/phaseD/` | Cross-validation and ablation-family/medium/phase tables (CSV/TeX) | Later historical ablation outputs |
-| `docs/pilot/` | Pilot ablation CSV | Pilot-only historical data |
-| `docs/calibration/` | Calibration CSV and JSONL | Recorded calibration artifacts |
 
 The directory names establish organization, not a complete reproducibility guarantee. Do not infer that one phase supersedes another, or that two similarly named tables are directly comparable, without examining their raw inputs and configuration.
 
@@ -47,6 +42,6 @@ Keep archived artifacts immutable. If a correction is needed, add a clearly vers
 - `results/figures/`: generated figures corresponding to the active `results/runs.jsonl` snapshot.
 - `report/figures/`: selected, report-ready figures referenced by the LaTeX manuscript. These are presentation assets and may originate from historical analysis; do not assume they match the active snapshot unless regenerated and checked.
 
-## Legacy implementation
+## Removed archival material
 
-`legacy/bmp.py` is retained for historical reference only. Production code and current experiment entry points should use the root-level CBMP implementation.
+The `phaseA`, `phaseA2`, `phaseB`, pilot, and tracked calibration artifacts were deliberately removed from this branch. They are not part of the active experiment pipeline and must not be cited as files available here. Historical conclusions that depended on those artifacts no longer have their supporting files in this branch. The retained Phase C/Phase D report tables remain historical snapshots; see `EXPERIMENT_PROVENANCE.md` and `REPORT_ARTIFACTS.md` for their limitations.
