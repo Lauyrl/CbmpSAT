@@ -58,8 +58,17 @@ print(f"[INFO] Snapshot source commit: {source_commit or 'not recorded'}")
 if dirty is True or source_commit.endswith("-dirty"): print("[WARN] Snapshot was produced from a dirty working tree; treat it as exploratory, not reproducible.")
 elif dirty is False: print("[OK] Metadata explicitly records git_dirty=false.")
 else: print("[WARN] Metadata does not explicitly establish a clean working tree.")
-for directory in (Path("results/tables"), Path("results/figures")):
-    if not directory.is_dir(): print(f"[WARN] Derived output directory is absent: {directory}")
+required_tables = (
+    Path("results/tables/table_encoding_comparison.csv"),
+    Path("results/tables/table_exact_solvers.csv"),
+    Path("results/tables/table_solvers_medium.csv"),
+)
+for table in required_tables:
+    if not table.is_file() or table.stat().st_size == 0:
+        raise SystemExit(f"[BLOCKER] Required current-snapshot table is missing or empty: {table}")
+    print(f"[OK] Current result table present: {table}")
+if not Path("results/figures").is_dir():
+    print("[INFO] results/figures/ will be created by analysis/make_plots.py")
 PY
 echo
 echo "[DONE] Preflight completed. Review any [WARN] messages before submission."
