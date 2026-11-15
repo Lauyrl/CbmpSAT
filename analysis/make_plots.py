@@ -6,6 +6,7 @@ import logging
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import cnsplots as cns
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -44,7 +45,7 @@ def setup_matplotlib():
     plt.rcParams["figure.titlesize"] = 14
     plt.rcParams["figure.autolayout"] = True
 
-def save_fig(fig, base_filename, output_dirs=("results_v2/figures",)):
+def save_fig(fig, base_filename, output_dirs=("results/figures",)):
     if isinstance(output_dirs, str):
         output_dirs = (output_dirs,)
     for out_dir in output_dirs:
@@ -55,6 +56,117 @@ def save_fig(fig, base_filename, output_dirs=("results_v2/figures",)):
         fig.savefig(pdf_path, bbox_inches="tight")
     print(f"Figure saved: {base_filename}.png and {base_filename}.pdf in {output_dirs[0]}/")
     plt.close(fig)
+
+def plot_encoding_comparison(records, output_dirs=("results/figures",)):
+    """
+    Draw CNSPlots boxplots only when both encodings have validated OPTIMAL samples.
+
+    The figure annotation reports recorded status counts for each encoding, so the
+    OPTIMAL-only runtime view does not conceal FEASIBLE, TIMEOUT, or solver errors.
+    """
+    selected = []
+    status_names = (
+        "OPTIMAL", "FEASIBLE", "TIMEOUT", "INTERRUPTED", "INFEASIBLE",
+        "SIZE_LIMIT", "UNAVAILABLE", "LICENSE_ERROR", "ERROR", "NUMERIC_ERROR",
+        "UNKNOWN", "PARTIAL",
+    )
+    status_counts = {
+        encoding: {status: 0 for status in status_names}
+        for encoding in ("order", "pairwise")
+    }
+    for record in records:
+        # The current exact_solvers batch also contains controlled Order/Pairwise
+        # runs. Use both groups so the current comparison covers all four datasets.
+        if not {"encodings", "exact_solvers"}.intersection(record.get("groups", [])):
+            continue
+        canon = get_canonical_key(record)
+        if canon is None or canon[1] != "sat":
+            continue
+        config = record.get("config", {}) if isinstance(record.get("config"), dict) else {}
+        encoding = str(config.get("encoding") or record.get("encoding") or "").strip().lower()
+        if encoding not in ("order", "pairwise"):
+            continue
+
+        status = "ERROR" if record.get("validation_error") else (normalize_status(record.get("status")) or "UNKNOWN")
+        count_fields = {
+            "OPTIMAL": "n_optimal",
+            "FEASIBLE": "n_feasible",
+            "TIMEOUT": "n_timeout",
+            "INTERRUPTED": "n_interrupted",
+            "INFEASIBLE": "n_infeasible",
+            "SIZE_LIMIT": "n_size_limit",
+            "UNAVAILABLE": "n_unavailable",
+            "LICENSE_ERROR": "n_license_error",
+            "ERROR": "n_error",
+            "NUMERIC_ERROR": "n_error",
+            "UNKNOWN": "n_unknown",
+        }
+        # Aggregated records expose the actual population counters; raw records count as one.
+        explicit_counts = False
+        for category, field in count_fields.items():
+            value = strict_int(record.get(field), min_val=0)
+            if value is not None:
+                status_counts[encoding][category] += value
+                explicit_counts = True
+        if not explicit_counts:
+            status_counts[encoding][status] += 1
+
+        if status != "OPTIMAL" or record.get("validation_error"):
+            continue
+        if validate_best_ub(record.get("best_ub")) is None:
+            continue
+        runtime = extract_repetition_solve_time(record)
+        if runtime is None or not math.isfinite(runtime) or runtime <= 0:
+            continue
+        selected.append({
+            "dataset": str(record.get("dataset", "unknown")),
+            "encoding": encoding,
+            "solve_time": float(runtime),
+        })
+
+    samples = {
+        encoding: sum(1 for row in selected if row["encoding"] == encoding)
+        for encoding in ("order", "pairwise")
+    }
+    coverage = "; ".join(
+        f"{encoding}: " + ", ".join(
+            f"{status}={count}"
+            for status, count in status_counts[encoding].items()
+            if count > 0
+        )
+        for encoding in ("order", "pairwise")
+    )
+    if not all(samples[encoding] > 0 for encoding in ("order", "pairwise")):
+        logger.warning(
+            "Skipping CNSPlots encoding comparison: at least one validated OPTIMAL sample "
+            "is required for both encodings. Samples=%s; recorded statuses: %s",
+            samples, coverage or "no records",
+        )
+        return
+
+    df = pd.DataFrame(selected)
+    requested_dirs = (output_dirs,) if isinstance(output_dirs, str) else tuple(output_dirs)
+    # Current snapshot outputs live only under results/; never overwrite a curated
+    # report figure directory with a partially regenerated plot.
+    all_output_dirs = requested_dirs
+    for out_dir in all_output_dirs:
+        os.makedirs(out_dir, exist_ok=True)
+        cns.setup_matplotlib()
+        fig, ax = plt.subplots(figsize=(8, 5))
+        cns.boxplot(data=df, x="encoding", y="solve_time", hue="encoding", ax=ax)
+        ax.set_title("Pairwise vs. Order Encoding (validated OPTIMAL runs)")
+        ax.set_xlabel("SAT encoding")
+        ax.set_ylabel("Solve time (seconds)")
+        ax.text(
+            0.0, -0.24,
+            f"OPTIMAL samples: order={samples['order']}, pairwise={samples['pairwise']}\n"
+            f"All recorded statuses: {coverage}",
+            transform=ax.transAxes, ha="left", va="top", fontsize=8,
+        )
+        fig.tight_layout(rect=(0, 0.15, 1, 1))
+        fig.savefig(os.path.join(out_dir, "cnsplots_encoding_comparison.png"), dpi=300, bbox_inches="tight")
+        fig.savefig(os.path.join(out_dir, "cnsplots_encoding_comparison.pdf"), bbox_inches="tight")
+        plt.close(fig)
 
 def get_ablation_var_name(cfg):
     rot = cfg.get("sb_rotation", False)
@@ -72,7 +184,7 @@ def get_ablation_var_name(cfg):
         return "all (SB+Heur)"
     return "other"
 
-def plot_cactus(records, group_name, category_key, title, base_filename, output_dirs=("results_v2/figures",)):
+def plot_cactus(records, group_name, category_key, title, base_filename, output_dirs=("results/figures",)):
     """
     Plots cumulative solved instances over solve time (Cactus plot).
     """
@@ -172,7 +284,7 @@ def extract_scatter_pairs(records, group_name="ablation_small"):
 
     return pairs
 
-def plot_scatter_sb_vs_nosb(records, group_name="ablation_small", base_filename="scatter_sb_vs_nosb_small", title="Solve Time: No Symmetry Breaking vs With Symmetry Breaking (Small Graphs)", output_dirs=("results_v2/figures",)):
+def plot_scatter_sb_vs_nosb(records, group_name="ablation_small", base_filename="scatter_sb_vs_nosb_small", title="Solve Time: No Symmetry Breaking vs With Symmetry Breaking (Small Graphs)", output_dirs=("results/figures",)):
     """
     Log-log scatter plot comparing solve time with vs without symmetry breaking.
     """
@@ -210,7 +322,7 @@ def plot_scatter_sb_vs_nosb(records, group_name="ablation_small", base_filename=
 
     save_fig(fig, base_filename, output_dirs=output_dirs)
 
-def plot_ablation_median_time(records, group_name="ablation_small", base_filename="ablation_median_time_small", title="Ablation Study: Median Solve Time Across Configurations (Small Graphs)", output_dirs=("results_v2/figures",)):
+def plot_ablation_median_time(records, group_name="ablation_small", base_filename="ablation_median_time_small", title="Ablation Study: Median Solve Time Across Configurations (Small Graphs)", output_dirs=("results/figures",)):
     """
     Bar chart showing median solve time per configuration.
     """
@@ -259,7 +371,7 @@ def plot_ablation_median_time(records, group_name="ablation_small", base_filenam
 
     save_fig(fig, base_filename, output_dirs=output_dirs)
 
-def plot_ablation_iterations_and_unsat(records, group_name="ablation_small", base_filename="ablation_iterations_and_unsat_small", title="Impact of Symmetry Breaking on SAT Iterations and UNSAT Proof Time (Small Graphs)", output_dirs=("results_v2/figures",)):
+def plot_ablation_iterations_and_unsat(records, group_name="ablation_small", base_filename="ablation_iterations_and_unsat_small", title="Impact of Symmetry Breaking on SAT Iterations and UNSAT Proof Time (Small Graphs)", output_dirs=("results/figures",)):
     """
     Plots number of SAT iterations and time spent on the final UNSAT iteration.
     """
@@ -329,7 +441,7 @@ def plot_ablation_iterations_and_unsat(records, group_name="ablation_small", bas
 
     save_fig(fig, base_filename, output_dirs=output_dirs)
 
-def plot_ablation_family_boxplots(records, base_filename="boxplot_ablation_family", output_dirs=("results_v2/figures",)):
+def plot_ablation_family_boxplots(records, base_filename="boxplot_ablation_family", output_dirs=("results/figures",)):
     """
     Boxplot (log scale) of time ratio relative to 'none' across vertex relabeling families.
     Separate panels for N=40 and N=50.
@@ -446,9 +558,9 @@ def main():
     if not output_dir:
         if input_file and (os.path.isfile(input_file) or os.path.isdir(input_file)):
             run_dir = os.path.dirname(input_file) if os.path.isfile(input_file) else input_file
-            run_dir = run_dir or "results_v2"
+            run_dir = run_dir or "results"
         else:
-            run_dir = "results_v2"
+            run_dir = "results"
         output_dir = os.path.join(run_dir, "figures")
 
     records = load_records(input_file)
@@ -466,63 +578,50 @@ def main():
 
     output_dirs = (output_dir,)
 
-    # 1. Cactus plots for groups
-    plot_cactus(
-        records,
-        group_name="solvers_small",
-        category_key=lambda r: r.get("solver", "unknown"),
-        title="Cactus Plot: Solvers (Small Graphs)",
-        base_filename="cactus_solvers_small",
-        output_dirs=output_dirs,
+    # Remove only figures managed by this script before regeneration. This prevents
+    # old ablation/method plots from surviving when their groups are absent.
+    managed_figures = (
+        "cactus_solvers_small", "cactus_solvers_medium", "cactus_methods",
+        "cactus_ablation_small", "cactus_ablation_medium", "cactus_exact_solvers",
+        "scatter_sb_vs_nosb_small", "ablation_median_time_small",
+        "ablation_median_time_medium", "ablation_iterations_and_unsat_small",
+        "ablation_iterations_and_unsat_medium", "cnsplots_encoding_comparison",
+        "boxplot_ablation_family",
     )
+    os.makedirs(output_dir, exist_ok=True)
+    for figure_name in managed_figures:
+        for extension in (".png", ".pdf"):
+            stale_path = os.path.join(output_dir, figure_name + extension)
+            if os.path.isfile(stale_path):
+                os.remove(stale_path)
+
+    # Cactus plot for current medium SAT solver comparison.
     plot_cactus(
         records,
         group_name="solvers_medium",
         category_key=lambda r: r.get("solver", "unknown"),
-        title="Cactus Plot: Solvers (Medium Graphs)",
+        title="Cactus Plot: SAT Solvers on Medium Instances",
         base_filename="cactus_solvers_medium",
         output_dirs=output_dirs,
     )
 
+    # Cactus plot for current exact-solver comparison.
     plot_cactus(
         records,
-        group_name="methods",
-        category_key=lambda r: "cpsat" if r.get("solver", "").lower() in ("cp_sat", "cpsat") else ("cplex" if r.get("solver", "").lower() == "cplex" else f"sat ({r.get('solver')})"),
-        title="Cactus Plot: Methods Comparison",
-        base_filename="cactus_methods",
+        group_name="exact_solvers",
+        category_key=lambda r: (
+            f"SAT / {str(r.get('encoding') or r.get('config', {}).get('encoding') or 'order').title()}"
+            if str(r.get("solver", "")).lower() in ("cadical195", "glucose4", "maplechrono", "minisat22", "lingeling")
+            else str(r.get("solver", "unknown")).upper()
+        ),
+        title="Cactus Plot: Current Exact-Solver Comparison",
+        base_filename="cactus_exact_solvers",
         output_dirs=output_dirs,
     )
 
-    plot_cactus(
-        records,
-        group_name="ablation_small",
-        category_key=lambda r: get_ablation_var_name(r.get("config", {})),
-        title="Cactus Plot: Ablation (Small Graphs)",
-        base_filename="cactus_ablation_small",
-        output_dirs=output_dirs,
-    )
-    plot_cactus(
-        records,
-        group_name="ablation_medium",
-        category_key=lambda r: get_ablation_var_name(r.get("config", {})),
-        title="Cactus Plot: Ablation (Medium Graph)",
-        base_filename="cactus_ablation_medium",
-        output_dirs=output_dirs,
-    )
-
-    # 2. Scatter log-log
-    plot_scatter_sb_vs_nosb(records, group_name="ablation_small", base_filename="scatter_sb_vs_nosb_small", title="Solve Time: No Symmetry Breaking vs With Symmetry Breaking (Small Graphs)", output_dirs=output_dirs)
-
-    # 3. Ablation median time bar chart
-    plot_ablation_median_time(records, group_name="ablation_small", base_filename="ablation_median_time_small", title="Ablation Study: Median Solve Time Across Configurations (Small Graphs)", output_dirs=output_dirs)
-    plot_ablation_median_time(records, group_name="ablation_medium", base_filename="ablation_median_time_medium", title="Ablation Study: Solve Time Across Configurations (662_bus_n60)", output_dirs=output_dirs)
-
-    # 4. Iterations & UNSAT time
-    plot_ablation_iterations_and_unsat(records, group_name="ablation_small", base_filename="ablation_iterations_and_unsat_small", title="Impact of Symmetry Breaking on SAT Iterations and UNSAT Proof Time (Small Graphs)", output_dirs=output_dirs)
-    plot_ablation_iterations_and_unsat(records, group_name="ablation_medium", base_filename="ablation_iterations_and_unsat_medium", title="Impact of Symmetry Breaking on SAT Iterations and UNSAT Proof Time (662_bus_n60)", output_dirs=output_dirs)
-
-    # 5. Ablation Family boxplots
-    plot_ablation_family_boxplots(records, base_filename="boxplot_ablation_family", output_dirs=output_dirs)
+    # CNSPlots encoding view is generated from current Order/Pairwise records
+    # present in either the standalone encoding or exact-solver group.
+    plot_encoding_comparison(records, output_dirs=output_dirs)
 
     print(f"\nAll figures generated successfully in {output_dir}/!")
 

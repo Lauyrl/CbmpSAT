@@ -865,4 +865,3 @@ def test_dataset_info_counts_normalized_graph_edges(tmp_path):
         encoding="utf-8",
     )
     assert get_dataset_info(str(matrix)) == (3, 2)
-

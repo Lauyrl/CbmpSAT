@@ -773,6 +773,46 @@ def pick_better_record(rec_a, rec_b, strict=False):
         logger.error(msg)
         raise DuplicateConflictError(msg)
 
+    # Strict mode treats non-identical outputs for the same run ID as data corruption.
+    if strict:
+        def _strict_execution_payload(rec):
+            cfg = rec.get("config", {}) if isinstance(rec.get("config"), dict) else {}
+            time_limit = rec.get("time_limit")
+            if time_limit is None:
+                time_limit = rec.get("timeout")
+            if time_limit is None:
+                time_limit = cfg.get("time_limit", cfg.get("timeout"))
+            payload = {
+                "status": normalize_status(rec.get("status")),
+                "best_ub": validate_best_ub(rec.get("best_ub")),
+                "solve_time": validate_solve_time(rec.get("solve_time")),
+                "wall_time": validate_solve_time(rec.get("wall_time")),
+                "encode_time": validate_solve_time(rec.get("encode_time")),
+                "num_vars": rec.get("num_vars"),
+                "num_clauses": rec.get("num_clauses"),
+                "assignment": rec.get("assignment"),
+                "validation_error": bool(rec.get("validation_error")),
+                "termination_reason": rec.get("termination_reason"),
+                "lower_bound": rec.get("lower_bound"),
+                "best_lb": rec.get("best_lb"),
+                "per_iter_times": rec.get("per_iter_times"),
+                "time_limit": time_limit,
+            }
+            return json.dumps(payload, sort_keys=True, default=str)
+
+        if _strict_execution_payload(rec_a) != _strict_execution_payload(rec_b):
+            if is_opt_a and is_opt_b and ub_a != ub_b:
+                raise DuplicateConflictError(
+                    f"Duplicate OPTIMAL conflict: best_ub {ub_a} vs {ub_b}"
+                )
+            raise DuplicateConflictError(
+                "Conflicting duplicate execution records share the same canonical "
+                "configuration and repetition identity; strict mode refuses to select one."
+            )
+        merged = dict(rec_a)
+        merged["groups"] = sorted(set(rec_a.get("groups", [])) | set(rec_b.get("groups", [])))
+        return merged
+
     # 2. Status tier ranking
     def _status_tier(st, ub, err):
         if err:
@@ -1153,12 +1193,10 @@ def load_records(jsonl_source=None, strict=False):
     elif jsonl_source is not None and os.path.isdir(jsonl_source):
         preferred = os.path.join(jsonl_source, "runs.jsonl")
         files = [preferred] if os.path.exists(preferred) else sorted(glob.glob(os.path.join(jsonl_source, "*.jsonl")))
-    elif os.path.exists("results_v2/runs.jsonl"):
-        files = ["results_v2/runs.jsonl"]
     elif os.path.exists("results/runs.jsonl"):
         files = ["results/runs.jsonl"]
     else:
-        files = sorted(glob.glob("results_v2/*.jsonl")) or sorted(glob.glob("results/*.jsonl"))
+        files = sorted(glob.glob("results/*.jsonl"))
 
     if not files:
         logger.warning("load_records: no JSONL files found.")
@@ -1626,7 +1664,7 @@ def compute_summary_stats(df_raw, column_names, baseline_col=None, timeout=600.0
 
     return solved_counts, sl_counts, par2_scores, speedups
 
-def export_table(df_display, summary_rows, title, base_filename, output_dirs=("results_v2/tables",), note=None, df_raw=None):
+def export_table(df_display, summary_rows, title, base_filename, output_dirs=("results/tables",), note=None, df_raw=None):
     """Saves formatted table as both CSV and LaTeX, and optionally exports machine-readable raw metrics."""
     if isinstance(output_dirs, str):
         output_dirs = (output_dirs,)
@@ -1725,7 +1763,7 @@ def export_table(df_display, summary_rows, title, base_filename, output_dirs=("r
     print(f"Table saved: {base_filename}.csv and {base_filename}.tex in {output_dirs[0]}/")
     return full_df
 
-def make_table_ablation(records, group_name="ablation_small", base_filename="table_ablation_small", title="Ablation Study: Small Graphs", output_dirs=("results_v2/tables",)):
+def make_table_ablation(records, group_name="ablation_small", base_filename="table_ablation_small", title="Ablation Study: Small Graphs", output_dirs=("results/tables",)):
     """Generate Ablation study table for a specific ablation group."""
     ablation_recs = [
         r for r in records
@@ -1875,7 +1913,7 @@ def make_table_ablation(records, group_name="ablation_small", base_filename="tab
     export_table(df_display, summary, title, base_filename, output_dirs=output_dirs, note=note, df_raw=df_raw)
     return df_display, summary, df_raw
 
-def make_table_solvers(records, group_name="solvers_small", base_filename="table_solvers_small", title="SAT Solver Performance Comparison (Small Graphs)", output_dirs=("results_v2/tables",)):
+def make_table_solvers(records, group_name="solvers_small", base_filename="table_solvers_small", title="SAT Solver Performance Comparison (Small Graphs)", output_dirs=("results/tables",)):
     """Generate Solvers comparison table for a specific solvers group."""
     solver_recs = [
         r for r in records
@@ -1966,17 +2004,423 @@ def make_table_solvers(records, group_name="solvers_small", base_filename="table
     export_table(df_display, summary, title, base_filename, output_dirs=output_dirs, note=note, df_raw=df_raw)
     return df_display, summary, df_raw
 
-def make_table_methods(records, output_dirs=("results_v2/tables",)):
+
+def _encoding_comparison_time_limit(record):
+    """Resolve a strictly positive time limit from top-level/config metadata."""
+    cfg = record.get("config", {}) if isinstance(record.get("config"), dict) else {}
+    record_value = record.get("time_limit")
+    if record_value is None:
+        record_value = record.get("timeout")
+    config_value = cfg.get("time_limit")
+    if config_value is None:
+        config_value = cfg.get("timeout")
+
+    record_limit = validate_solve_time(record_value) if record_value is not None else None
+    config_limit = validate_solve_time(config_value) if config_value is not None else None
+    if record_value is not None and (record_limit is None or record_limit <= 0):
+        raise ValueError(f"Invalid top-level encoding time limit: {record_value!r}")
+    if config_value is not None and (config_limit is None or config_limit <= 0):
+        raise ValueError(f"Invalid configured encoding time limit: {config_value!r}")
+    if record_limit is not None and config_limit is not None and record_limit != config_limit:
+        raise ValueError(
+            f"Encoding time-limit conflict: record={record_limit} vs config={config_limit}"
+        )
+    limit = record_limit if record_limit is not None else config_limit
+    return float(limit if limit is not None else 600.0)
+
+
+def _encoding_comparison_identity(record):
+    """
+    Return (encoding, controlled-configuration identity) for one SAT run.
+
+    Pairing excludes only the encoding itself. It retains dataset, normalized solver,
+    seed, symmetry/heuristic flags, solving mode, EO strategy, time limit, and
+    available dataset metadata.
+    """
+    canon = get_canonical_key(record)
+    if canon is None:
+        return None
+    dataset, method, solver, flags, seed = canon
+    if method != "sat" or not isinstance(flags, (tuple, list)):
+        return None
+
+    if len(flags) == 6:
+        rot, ref, heur, encoding, solving_mode, eo_strategy = flags
+    elif len(flags) == 3:
+        rot, ref, heur = flags
+        encoding, solving_mode, eo_strategy = "order", "incremental", "commander"
+    else:
+        return None
+
+    encoding = str(encoding).strip().lower()
+    if encoding not in ("order", "pairwise"):
+        return None
+
+    n_raw = record.get("N")
+    edges_raw = record.get("num_edges", record.get("M"))
+    n = strict_int(n_raw, min_val=1) if n_raw is not None else None
+    num_edges = strict_int(edges_raw, min_val=0) if edges_raw is not None else None
+    if n_raw is not None and n is None:
+        raise ValueError(f"Invalid N in encoding record for {dataset!r}: {n_raw!r}")
+    if edges_raw is not None and num_edges is None:
+        raise ValueError(f"Invalid edge count in encoding record for {dataset!r}: {edges_raw!r}")
+
+    time_limit = _encoding_comparison_time_limit(record)
+    controls = (
+        dataset, solver, seed, bool(rot), bool(ref), bool(heur),
+        str(solving_mode), str(eo_strategy), time_limit, n, num_edges,
+    )
+    return encoding, controls
+
+
+def _encoding_run_signature(record):
+    """Stable measured-output signature used to validate duplicate run IDs."""
+    cfg = record.get("config", {}) if isinstance(record.get("config"), dict) else {}
+    time_limit = record.get("time_limit")
+    if time_limit is None:
+        time_limit = record.get("timeout")
+    if time_limit is None:
+        time_limit = cfg.get("time_limit", cfg.get("timeout"))
+    payload = {
+        "status": normalize_status(record.get("status")) or "UNKNOWN",
+        "best_ub": validate_best_ub(record.get("best_ub")),
+        "solve_time": validate_solve_time(record.get("solve_time")),
+        "wall_time": validate_solve_time(record.get("wall_time")),
+        "encode_time": validate_solve_time(record.get("encode_time")),
+        "num_vars": record.get("num_vars"),
+        "num_clauses": record.get("num_clauses"),
+        "assignment": record.get("assignment"),
+        "validation_error": bool(record.get("validation_error")),
+        "termination_reason": record.get("termination_reason"),
+        "lower_bound": record.get("lower_bound"),
+        "best_lb": record.get("best_lb"),
+        "per_iter_times": record.get("per_iter_times"),
+        "time_limit": time_limit,
+    }
+    return json.dumps(payload, sort_keys=True, default=str)
+
+
+def _deduplicate_encoding_runs(records):
+    """
+    Deduplicate equivalent outputs for the same canonical configuration and repetition.
+
+    Any non-identical status or measurement for the same repetition is an integrity
+    error; this comparison never selects the faster or more favorable result.
+    """
+    by_run_id = {}
+    for record in records:
+        identity = _encoding_comparison_identity(record)
+        if identity is None:
+            continue
+        rep = get_repetition_identity(record)
+        canonical = get_canonical_key(record)
+        if rep is None or canonical is None:
+            raise ValueError(
+                "Encoding run has an invalid canonical identity or repetition number: "
+                f"{record.get('dataset')!r}, rep={record.get('rep')!r}"
+            )
+        run_id = (canonical, rep, identity[1])
+        previous = by_run_id.get(run_id)
+        if previous is None:
+            by_run_id[run_id] = record
+            continue
+
+        if _encoding_run_signature(previous) != _encoding_run_signature(record):
+            prev_status = normalize_status(previous.get("status"))
+            next_status = normalize_status(record.get("status"))
+            prev_ub = validate_best_ub(previous.get("best_ub"))
+            next_ub = validate_best_ub(record.get("best_ub"))
+            if prev_status == next_status == "OPTIMAL" and prev_ub != next_ub:
+                raise DuplicateConflictError(
+                    "Conflicting OPTIMAL bandwidths for duplicate encoding run "
+                    f"{run_id!r}: {prev_ub} vs {next_ub}"
+                )
+            raise DuplicateConflictError(
+                "Conflicting status or measurements for duplicate encoding run "
+                f"{run_id!r}; strict comparison refuses to select one."
+            )
+
+        merged = dict(previous)
+        merged["groups"] = sorted(set(previous.get("groups", [])) | set(record.get("groups", [])))
+        by_run_id[run_id] = merged
+
+    return [
+        by_run_id[key]
+        for key in sorted(by_run_id, key=lambda item: (str(item[0]), item[1], str(item[2])))
+    ]
+
+
+def make_table_encoding_comparison(
+    records,
+    base_filename="table_encoding_comparison",
+    output_dirs=("results/tables",),
+):
+    """
+    Export status-aware per-configuration results and repetition-paired comparisons.
+
+    Repetitions are aggregated for the detail table. Runtime ratios are computed
+    per matched repetition only when both encodings prove the same validated optimum.
+    """
+    if isinstance(output_dirs, str):
+        output_dirs = (output_dirs,)
+
+    # load_records() returns aggregate rows with original runs under "reps".
+    # Flatten those rows before validating run identities and pairing repetitions.
+    raw_encoding_records = []
+    for record in records:
+        if not is_valid_record_dict(record):
+            continue
+        nested_reps = record.get("reps")
+        candidates = nested_reps if isinstance(nested_reps, list) and nested_reps else [record]
+        for candidate in candidates:
+            if not is_valid_record_dict(candidate):
+                continue
+            candidate_groups = candidate.get("groups", record.get("groups", []))
+            # The exact_solvers group deliberately includes both SAT encodings
+            # alongside CP-SAT/CPLEX/Gurobi. Include those SAT rows here so the
+            # encoding comparison is complete even when a task was not also
+            # scheduled by the standalone encodings group.
+            if not {"encodings", "exact_solvers"}.intersection(candidate_groups):
+                continue
+            if _encoding_comparison_identity(candidate) is not None:
+                raw_encoding_records.append(candidate)
+
+    if not raw_encoding_records:
+        logger.warning(
+            "No raw SAT encoding records found in groups 'encodings' or 'exact_solvers'; no quantitative encoding tables generated."
+        )
+        return None
+
+    deduplicated = _deduplicate_encoding_runs(raw_encoding_records)
+    by_configuration = {}
+    by_control = {}
+
+    for record in deduplicated:
+        encoding, controls = _encoding_comparison_identity(record)
+        rep = get_repetition_identity(record)
+        canonical = get_canonical_key(record)
+        config_key = (encoding, controls, canonical)
+        by_configuration.setdefault(config_key, []).append(record)
+        by_control.setdefault(controls, {}).setdefault(encoding, {})[rep] = record
+
+    detail_rows = []
+    for (encoding, controls, canonical), repetitions in sorted(
+        by_configuration.items(), key=lambda item: (str(item[0][1]), item[0][0], str(item[0][2]))
+    ):
+        ordered_reps = sorted(repetitions, key=get_repetition_identity)
+        optimal_ubs = {
+            validate_best_ub(rec.get("best_ub"))
+            for rec in ordered_reps
+            if normalize_status(rec.get("status")) == "OPTIMAL"
+            and not rec.get("validation_error")
+            and validate_best_ub(rec.get("best_ub")) is not None
+        }
+        if len(optimal_ubs) > 1:
+            raise DuplicateConflictError(
+                "Conflicting OPTIMAL bandwidths across repetitions for encoding "
+                f"{encoding!r}, configuration={controls!r}: {sorted(optimal_ubs)}"
+            )
+
+        aggregate = aggregate_repetition_group(ordered_reps)
+        if aggregate is None:
+            continue
+        dataset, solver, seed, rot, ref, heur, mode, eo, time_limit, n, num_edges = controls
+        missing_or_nonpositive_optimal_times = sum(
+            1 for rec in ordered_reps
+            if normalize_status(rec.get("status")) == "OPTIMAL"
+            and (
+                validate_solve_time(extract_repetition_solve_time(rec)) is None
+                or validate_solve_time(extract_repetition_solve_time(rec)) <= 0
+            )
+        )
+        detail_rows.append({
+            "dataset": dataset,
+            "encoding": encoding,
+            "solver": solver,
+            "relabel_seed": seed,
+            "time_limit_s": time_limit,
+            "N": n,
+            "num_edges": num_edges,
+            "sb_rotation": rot,
+            "sb_reflection": ref,
+            "heuristic_ub": heur,
+            "solving_mode": mode,
+            "eo_strategy": eo,
+            "status": normalize_status(aggregate.get("status")) or "UNKNOWN",
+            "best_validated_ub": validate_best_ub(aggregate.get("best_ub")),
+            "solve_time_s_median": validate_solve_time(aggregate.get("solve_time")),
+            "wall_time_s_median": validate_solve_time(aggregate.get("wall_time")),
+            "encode_time_s_median": validate_solve_time(aggregate.get("encode_time")),
+            "num_vars": strict_int(aggregate.get("num_vars"), min_val=0),
+            "num_clauses": strict_int(aggregate.get("num_clauses"), min_val=0),
+            "n_total": aggregate.get("n_total", len(ordered_reps)),
+            "n_algorithmic": aggregate.get("n_algorithmic", 0),
+            "n_optimal": aggregate.get("n_optimal", 0),
+            "n_timeout": aggregate.get("n_timeout", 0),
+            "n_interrupted": aggregate.get("n_interrupted", 0),
+            "n_feasible": aggregate.get("n_feasible", 0),
+            "n_infeasible": aggregate.get("n_infeasible", 0),
+            "n_error": aggregate.get("n_error", 0),
+            "n_size_limit": aggregate.get("n_size_limit", 0),
+            "n_unavailable": aggregate.get("n_unavailable", 0),
+            "n_license_error": aggregate.get("n_license_error", 0),
+            "n_unknown": aggregate.get("n_unknown", 0),
+            "n_optimal_missing_or_nonpositive_timing": missing_or_nonpositive_optimal_times,
+        })
+
+    if not detail_rows:
+        logger.warning("No valid encoding comparison configurations remained after validation.")
+        return None
+
+    detail_df = pd.DataFrame(detail_rows)
+    detail_df = detail_df.sort_values(
+        ["dataset", "encoding", "solver", "relabel_seed", "time_limit_s"],
+        kind="stable",
+    )
+    detail_df.index = detail_df.apply(
+        lambda row: (
+            f"{row['dataset']} / {row['encoding']} / {row['solver']} / "
+            f"seed={row['relabel_seed']} / SB={row['sb_rotation']},{row['sb_reflection']} / "
+            f"RCM={row['heuristic_ub']} / TL={row['time_limit_s']}"
+        ),
+        axis=1,
+    )
+    detail_df.index.name = "dataset / encoding / controlled configuration"
+
+    per_dataset = {}
+    for controls, encoding_map in sorted(by_control.items(), key=lambda item: str(item[0])):
+        dataset = controls[0]
+        acc = per_dataset.setdefault(dataset, {
+            "n_control_configs": 0,
+            "n_both_encodings": 0,
+            "n_order_only_configs": 0,
+            "n_pairwise_only_configs": 0,
+            "n_unmatched_control_configs": 0,
+            "n_matched_repetition_pairs": 0,
+            "n_unmatched_repetition_runs": 0,
+            "n_order_only_repetitions": 0,
+            "n_pairwise_only_repetitions": 0,
+            "n_paired_optimal_runtime": 0,
+            "n_equal_optimum_pairs": 0,
+            "n_mismatched_optimum_pairs": 0,
+            "n_optimal_pairs_missing_or_nonpositive_timing": 0,
+            "n_timeout_pairs": 0,
+            "n_feasible_pairs": 0,
+            "n_other_status_pairs": 0,
+            "order_times": [],
+            "pairwise_times": [],
+            "runtime_ratios_pairwise_over_order": [],
+        })
+        acc["n_control_configs"] += 1
+        order_runs = encoding_map.get("order", {})
+        pairwise_runs = encoding_map.get("pairwise", {})
+        if order_runs and pairwise_runs:
+            acc["n_both_encodings"] += 1
+        elif order_runs:
+            acc["n_order_only_configs"] += 1
+            acc["n_unmatched_control_configs"] += 1
+        elif pairwise_runs:
+            acc["n_pairwise_only_configs"] += 1
+            acc["n_unmatched_control_configs"] += 1
+
+        for rep in sorted(set(order_runs) | set(pairwise_runs)):
+            order_rec = order_runs.get(rep)
+            pairwise_rec = pairwise_runs.get(rep)
+            if order_rec is None or pairwise_rec is None:
+                acc["n_unmatched_repetition_runs"] += 1
+                if order_rec is not None:
+                    acc["n_order_only_repetitions"] += 1
+                if pairwise_rec is not None:
+                    acc["n_pairwise_only_repetitions"] += 1
+                continue
+
+            acc["n_matched_repetition_pairs"] += 1
+            order_status = "ERROR" if order_rec.get("validation_error") else (normalize_status(order_rec.get("status")) or "UNKNOWN")
+            pairwise_status = "ERROR" if pairwise_rec.get("validation_error") else (normalize_status(pairwise_rec.get("status")) or "UNKNOWN")
+
+            if "TIMEOUT" in (order_status, pairwise_status):
+                acc["n_timeout_pairs"] += 1
+            if "FEASIBLE" in (order_status, pairwise_status):
+                acc["n_feasible_pairs"] += 1
+
+            if order_status == "OPTIMAL" and pairwise_status == "OPTIMAL":
+                order_ub = validate_best_ub(order_rec.get("best_ub"))
+                pairwise_ub = validate_best_ub(pairwise_rec.get("best_ub"))
+                if order_ub is None or pairwise_ub is None:
+                    acc["n_other_status_pairs"] += 1
+                elif order_ub != pairwise_ub:
+                    acc["n_mismatched_optimum_pairs"] += 1
+                else:
+                    acc["n_equal_optimum_pairs"] += 1
+                    order_time = validate_solve_time(extract_repetition_solve_time(order_rec))
+                    pairwise_time = validate_solve_time(extract_repetition_solve_time(pairwise_rec))
+                    if (
+                        order_time is None or pairwise_time is None
+                        or order_time <= 0 or pairwise_time <= 0
+                    ):
+                        acc["n_optimal_pairs_missing_or_nonpositive_timing"] += 1
+                    else:
+                        acc["n_paired_optimal_runtime"] += 1
+                        acc["order_times"].append(order_time)
+                        acc["pairwise_times"].append(pairwise_time)
+                        acc["runtime_ratios_pairwise_over_order"].append(pairwise_time / order_time)
+            elif "TIMEOUT" not in (order_status, pairwise_status) and "FEASIBLE" not in (order_status, pairwise_status):
+                acc["n_other_status_pairs"] += 1
+
+    pair_rows = []
+    for dataset, acc in sorted(per_dataset.items()):
+        order_times = acc.pop("order_times")
+        pairwise_times = acc.pop("pairwise_times")
+        ratios = acc.pop("runtime_ratios_pairwise_over_order")
+        pair_rows.append({
+            "dataset": dataset,
+            **acc,
+            "median_order_s_paired_optimal": float(np.median(order_times)) if order_times else None,
+            "median_pairwise_s_paired_optimal": float(np.median(pairwise_times)) if pairwise_times else None,
+            "median_pairwise_over_order": float(np.median(ratios)) if ratios else None,
+        })
+
+    note = (
+        "All status categories are retained in the per-configuration table. Paired statistics "
+        "match dataset, solver, seed, all symmetry/heuristic flags, solving mode, EO strategy, "
+        "time limit, dataset metadata, and repetition. Runtime ratios require both records to "
+        "prove the same validated optimum and have positive finite solve times."
+    )
+    export_table(
+        detail_df, [],
+        "Pairwise vs Order Encoding: Per-configuration results",
+        base_filename, output_dirs=output_dirs, note=note,
+    )
+    pair_df = pd.DataFrame(pair_rows).set_index("dataset")
+    export_table(
+        pair_df, [],
+        "Pairwise vs Order Encoding: Matched-repetition summary",
+        f"{base_filename}_pairs", output_dirs=output_dirs, note=note,
+    )
+    print(
+        f"Encoding comparison tables saved: {base_filename} and {base_filename}_pairs; "
+        f"{len(detail_df)} configurations and "
+        f"{int(pair_df['n_paired_optimal_runtime'].sum())} paired OPTIMAL runtimes."
+    )
+    return detail_df, pair_df
+
+def make_table_methods(records, output_dirs=("results/tables",)):
     """Generate Methods comparison table (SAT vs CP-SAT vs CPLEX)."""
-    method_recs = [r for r in records if "methods" in r.get("groups", [])]
+    method_group_names = {"methods", "exact_solvers", "cplex_cp", "gurobi", "encodings"}
+    method_recs = [
+        r for r in records
+        if method_group_names.intersection(r.get("groups", []))
+    ]
     if not method_recs:
         return
 
-    methods = ["sat_best", "cpsat", "cplex"]
+    methods = ["sat_best", "cpsat", "cplex", "cplex_cp", "gurobi"]
 
     sat_candidates = {}
     cpsat_candidates = {}
     cplex_candidates = {}
+    cplex_cp_candidates = {}
+    gurobi_candidates = {}
     meta = {}
 
     for r in method_recs:
@@ -1987,7 +2431,11 @@ def make_table_methods(records, output_dirs=("results_v2/tables",)):
 
         if sol == "cp_sat" or m in ("cpsat", "cp_sat"):
             cpsat_candidates.setdefault(ds, []).append(r)
-        elif sol == "cplex" or m == "cplex":
+        elif sol == "cplex_cp" or m == "cplex_cp":
+            cplex_cp_candidates.setdefault(ds, []).append(r)
+        elif sol == "gurobi" or m == "gurobi":
+            gurobi_candidates.setdefault(ds, []).append(r)
+        elif sol == "cplex" or m in ("cplex", "cplex_mip"):
             cplex_candidates.setdefault(ds, []).append(r)
         elif (m == "sat" or sol in ("cadical195", "glucose4", "kissat", "minisat22", "maplechrono", "lingeling")) and m not in ("cpsat", "cp_sat", "cplex", "cplex_cp", "gurobi") and sol not in ("cp_sat", "cplex", "cplex_cp", "gurobi"):
             sat_candidates.setdefault(ds, []).append(r)
@@ -1996,17 +2444,29 @@ def make_table_methods(records, output_dirs=("results_v2/tables",)):
 
     data_by_ds = {}
     all_ds = sorted(
-        list(set(list(sat_candidates.keys()) + list(cpsat_candidates.keys()) + list(cplex_candidates.keys()))),
+        list(set(list(sat_candidates.keys()) + list(cpsat_candidates.keys()) +
+                 list(cplex_candidates.keys()) + list(cplex_cp_candidates.keys()) +
+                 list(gurobi_candidates.keys()))),
         key=lambda d: (meta.get(d, (0, 0))[0], d)
     )
 
     def _sat_rank(rc):
         st = normalize_status(rc.get("status"))
         tier_map = {
-            "OPTIMAL": 0, "FEASIBLE": 1, "TIMEOUT": 2, "INFEASIBLE": 3,
-            "SIZE_LIMIT": 4, "ERROR": 5, "UNKNOWN": 6
+            "OPTIMAL": 0,
+            "PARTIAL": 1,
+            "FEASIBLE": 2,
+            "TIMEOUT": 3,
+            "INTERRUPTED": 4,
+            "SIZE_LIMIT": 5,
+            "UNAVAILABLE": 6,
+            "LICENSE_ERROR": 6,
+            "INFEASIBLE": 7,
+            "ERROR": 8,
+            "NUMERIC_ERROR": 8,
+            "UNKNOWN": 9,
         }
-        tier = tier_map.get(st, 6)
+        tier = tier_map.get(st, 9)
         t = extract_repetition_solve_time(rc)
         ub = validate_best_ub(rc.get("best_ub"))
         c_key = get_canonical_key(rc)
@@ -2021,11 +2481,24 @@ def make_table_methods(records, output_dirs=("results_v2/tables",)):
             ub_metric = ub if ub is not None else float("inf")
             return (tier, time_metric, ub_metric, sol_idx, str(sol), c_key_str)
         elif tier == 1:
+            # PARTIAL has at least one proven run, but is ranked below a fully
+            # OPTIMAL configuration. Prefer the larger proven-repetition fraction.
+            n_total = strict_int(rc.get("n_total"), min_val=1)
+            n_optimal = strict_int(rc.get("n_optimal"), min_val=0)
+            optimal_fraction = (
+                n_optimal / n_total
+                if n_total is not None and n_optimal is not None
+                else 0.0
+            )
+            ub_metric = ub if ub is not None else float("inf")
+            time_metric = t if (t is not None and t > 0) else float("inf")
+            return (tier, -optimal_fraction, ub_metric, time_metric, sol_idx, str(sol), c_key_str)
+        elif tier == 2:
             time_metric = t if (t is not None and t > 0) else float("inf")
             ub_metric = ub if ub is not None else float("inf")
             return (tier, ub_metric, time_metric, sol_idx, str(sol), c_key_str)
         else:
-            # Non-solved tiers do NOT use runtime as success metric
+            # Non-solved tiers do NOT use runtime as a success metric.
             return (tier, float("inf"), float("inf"), sol_idx, str(sol), c_key_str)
 
     for ds in all_ds:
@@ -2087,7 +2560,7 @@ def make_table_methods(records, output_dirs=("results_v2/tables",)):
             if cp_aggs:
                 data_by_ds[ds]["cpsat"] = sorted(cp_aggs, key=_sat_rank)[0]
 
-        # 3. Select cplex
+        # 3. Select CPLEX MIP
         cand_cpl = cplex_candidates.get(ds, [])
         if cand_cpl:
             cpl_by_config = {}
@@ -2112,6 +2585,30 @@ def make_table_methods(records, output_dirs=("results_v2/tables",)):
                         cpl_aggs.append(agg)
             if cpl_aggs:
                 data_by_ds[ds]["cplex"] = sorted(cpl_aggs, key=_sat_rank)[0]
+
+        # 4. Select CPLEX CP and Gurobi independently.
+        for method_name, candidates in (
+            ("cplex_cp", cplex_cp_candidates),
+            ("gurobi", gurobi_candidates),
+        ):
+            selected = []
+            grouped = {}
+            for record in candidates.get(ds, []):
+                key = get_canonical_key(record)
+                if key is not None:
+                    grouped.setdefault(key, []).append(record)
+            for _, cfg_recs in sorted(grouped.items(), key=lambda item: str(item[0])):
+                ordered = sorted(cfg_recs, key=lambda x: (
+                    get_repetition_identity(x) or 1,
+                    validate_solve_time(x.get("solve_time")) or float("inf"),
+                    validate_solve_time(x.get("wall_time")) or float("inf"),
+                    str(x),
+                ))
+                agg = ordered[0] if len(ordered) == 1 else aggregate_repetition_group(ordered)
+                if agg is not None:
+                    selected.append(agg)
+            if selected:
+                data_by_ds[ds][method_name] = sorted(selected, key=_sat_rank)[0]
 
     ds_sorted = all_ds
 
@@ -2153,18 +2650,48 @@ def make_table_methods(records, output_dirs=("results_v2/tables",)):
 
     spdup_label = f"Speedup (geom) [{n_used}/{n_total}]" if n_used > 0 else "Speedup (geom)"
 
+    # PAR2 is averaged over algorithmic runs only. SIZE_LIMIT,
+    # UNAVAILABLE, LICENSE_ERROR, and UNKNOWN do not enter its denominator.
+    par2_population = {"N": "-", "|E|": "-"}
+    for method_name in methods:
+        population = 0
+        for ds in ds_sorted:
+            rec = data_by_ds[ds].get(method_name)
+            if not is_valid_record_dict(rec):
+                continue
+            explicit = strict_int(rec.get("n_algorithmic"), min_val=0)
+            if explicit is not None:
+                population += explicit
+            elif normalize_status(rec.get("status")) in (
+                "OPTIMAL", "PARTIAL", "FEASIBLE", "TIMEOUT", "INTERRUPTED",
+                "INFEASIBLE", "ERROR", "NUMERIC_ERROR"
+            ):
+                population += 1
+        par2_population[method_name] = str(population)
+
     summary = [
         ("Solved", sum_solved),
         ("SL", sum_sl),
+        ("PAR2 runs (n)", par2_population),
         (par2_label, sum_par2),
         (spdup_label, sum_spdup),
     ]
 
-    note = f"SL = Size Limit (vượt giới hạn CPLEX Community Edition, loại khỏi PAR2). Speedup chỉ tính trên instance mà baseline >= 0.1s ({n_used}/{n_total}). Các method chưa giải hết các instance này ghi '-'."
-    export_table(df_display, summary, "Comparison of Methods: SAT vs CP-SAT vs CPLEX", "table_methods", output_dirs=output_dirs, note=note, df_raw=df_raw)
+    note = (
+        "SL = CPLEX Community Edition size limit; excluded from PAR2. "
+        "UNAVAILABLE, LICENSE_ERROR, and UNKNOWN are also excluded from PAR2. "
+        "PAR2 runs (n) reports the actual algorithmic denominator per method. "
+        f"Speedup is geometric and uses only the {n_used}/{n_total} baseline-eligible "
+        "instances; a method missing any eligible optimal timing is shown as '-'."
+    )
+    export_table(
+        df_display, summary,
+        "Comparison of Methods: SAT vs CP-SAT vs CPLEX MIP vs CPLEX CP vs Gurobi",
+        "table_methods", output_dirs=output_dirs, note=note, df_raw=df_raw
+    )
     return df_display, summary, df_raw
 
-def make_table_ablation_family(records, base_filename="table_ablation_family", output_dirs=("results_v2/tables",)):
+def make_table_ablation_family(records, base_filename="table_ablation_family", output_dirs=("results/tables",)):
     """
     Generate table_ablation_family.csv:
     Each row: (comparison_group, variant): median time ratio, IQR (25-75%), min-max, faster_pairs / total_pairs.
@@ -2394,7 +2921,7 @@ def make_table_ablation_family(records, base_filename="table_ablation_family", o
 
     return df
 
-def make_table_ablation_phases(records, base_filename="table_ablation_phases", output_dirs=("results_v2/tables",)):
+def make_table_ablation_phases(records, base_filename="table_ablation_phases", output_dirs=("results/tables",)):
     """
     Generate table_ablation_phases.csv:
     Median last_iter_time, median prev_iters_time, ratio of last_iter/solve_time by variant, split by N (40 and 50).
@@ -2530,7 +3057,7 @@ def get_lb_degree(dataset_name):
     except Exception:
         return 0
 
-def make_table_per_dataset(records, base_filename="table_per_dataset", output_dirs=("results_v2/tables",)):
+def make_table_per_dataset(records, base_filename="table_per_dataset", output_dirs=("results/tables",)):
     """Generate summary table for per_dataset group (cadical195 on all datasets).
     SAT does not produce a solver lower bound (lb_solver is '-').
     ub_minus_lb is best_ub - lb, representing a weak bound gap rather than distance to optimality.
@@ -2610,7 +3137,7 @@ def make_table_per_dataset(records, base_filename="table_per_dataset", output_di
     print(f"Table saved: {base_filename}.csv in {output_dirs[0]}/")
     return df
 
-def make_table_methods_family(records, base_filename="table_methods_family", output_dirs=("results_v2/tables",)):
+def make_table_methods_family(records, base_filename="table_methods_family", output_dirs=("results/tables",)):
     """
     Generate table_methods_family.csv:
     Compare cpsat vs sat_best across random vertex relabelings.
@@ -2700,7 +3227,7 @@ def make_table_methods_family(records, base_filename="table_methods_family", out
     print(f"Table saved: {base_filename}.csv in {output_dirs[0]}/")
     return df
 
-def make_table_methods_large(records, base_filename="table_methods_large", output_dirs=("results_v2/tables",)):
+def make_table_methods_large(records, base_filename="table_methods_large", output_dirs=("results/tables",)):
     """
     Generate table_methods_large.csv:
     Compare cpsat vs sat_best on large datasets (N >= 80, original labels).
@@ -2799,7 +3326,7 @@ def make_table_methods_large(records, base_filename="table_methods_large", outpu
     print(f"Table saved: {base_filename}.csv in {output_dirs[0]}/")
     return df
 
-def make_table_methods_large_seeds(records, base_filename="table_methods_large_seeds", output_dirs=("results_v2/tables",)):
+def make_table_methods_large_seeds(records, base_filename="table_methods_large_seeds", output_dirs=("results/tables",)):
     """
     Generate table_methods_large_seeds.csv:
     For datasets 494_bus_n80, 494_bus_n100, 662_bus_n80, 662_bus_n100:
@@ -2880,6 +3407,64 @@ def make_table_methods_large_seeds(records, base_filename="table_methods_large_s
     print(f"Table saved: {base_filename}.csv in {output_dirs[0]}/")
     return df
 
+def make_table_exact_solvers(records, base_filename="table_exact_solvers", output_dirs=("results/tables",)):
+    """Write the current exact_solvers records without collapsing distinct outcomes."""
+    if isinstance(output_dirs, str):
+        output_dirs = (output_dirs,)
+    rows = []
+    for record in records:
+        if not is_valid_record_dict(record):
+            continue
+        nested = record.get("reps")
+        candidates = nested if isinstance(nested, list) and nested else [record]
+        for item in candidates:
+            if not is_valid_record_dict(item):
+                continue
+            groups = item.get("groups", record.get("groups", []))
+            if "exact_solvers" not in groups:
+                continue
+            solver = normalize_solver_alias(item.get("solver"))
+            if solver in ("cadical195", "glucose4", "maplechrono", "minisat22", "lingeling"):
+                encoding = str(item.get("encoding") or item.get("config", {}).get("encoding") or "order").strip().lower()
+                method = f"SAT / {encoding.title()}"
+            elif solver == "cp_sat":
+                method = "CP-SAT"
+            elif solver == "cplex":
+                method = "CPLEX MIP"
+            elif solver == "cplex_cp":
+                method = "CPLEX CP"
+            elif solver == "gurobi":
+                method = "Gurobi"
+            else:
+                method = str(item.get("method") or solver or "unknown")
+            rows.append({
+                "dataset": item.get("dataset"),
+                "N": item.get("N"),
+                "edges": item.get("num_edges"),
+                "method": method,
+                "solver": solver,
+                "encoding": item.get("encoding") or item.get("config", {}).get("encoding", ""),
+                "status": normalize_status(item.get("status")) or "UNKNOWN",
+                "best_ub": validate_best_ub(item.get("best_ub")),
+                "best_lb": validate_best_ub(item.get("best_lb")),
+                "solve_time_s": validate_solve_time(item.get("solve_time")),
+                "wall_time_s": validate_solve_time(item.get("wall_time")),
+                "variables": strict_int(item.get("num_vars"), min_val=0),
+                "clauses": strict_int(item.get("num_clauses"), min_val=0),
+            })
+    if not rows:
+        logger.warning("No exact_solvers records found; no exact-solver table generated.")
+        return None
+    df = pd.DataFrame(rows).sort_values(
+        ["N", "dataset", "method"], kind="stable"
+    )
+    for out_dir in output_dirs:
+        os.makedirs(out_dir, exist_ok=True)
+        df.to_csv(os.path.join(out_dir, f"{base_filename}.csv"), index=False)
+    print(f"Table saved: {base_filename}.csv in {output_dirs[0]}/")
+    return df
+
+
 def main():
     print("=" * 70)
     print("ANALYSIS: GENERATING LATEX AND CSV TABLES")
@@ -2897,12 +3482,12 @@ def main():
     if not output_dir:
         if input_file and (os.path.isfile(input_file) or os.path.isdir(input_file)):
             run_dir = os.path.dirname(input_file) if os.path.isfile(input_file) else input_file
-            run_dir = run_dir or "results_v2"
+            run_dir = run_dir or "results"
         else:
-            run_dir = "results_v2"
+            run_dir = "results"
         output_dir = os.path.join(run_dir, "tables")
 
-    records = load_records(input_file)
+    records = load_records(input_file, strict=True)
     if not records:
         print("No records found to analyze. Please run experiments first.")
         return
@@ -2914,20 +3499,17 @@ def main():
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
 
-    # Step 2: Make tables
+    # Step 2: Generate only tables supported by the latest tracked raw snapshot.
     output_dirs = (output_dir,)
-    make_table_ablation(records, group_name="ablation_small", base_filename="table_ablation_small", title="Ablation Study: Small Graphs", output_dirs=output_dirs)
-    make_table_ablation(records, group_name="ablation_medium", base_filename="table_ablation_medium", title="Ablation Study: Medium Graph (662_bus_n60)", output_dirs=output_dirs)
-    make_table_ablation_family(records, base_filename="table_ablation_family", output_dirs=output_dirs)
-    make_table_ablation_phases(records, base_filename="table_ablation_phases", output_dirs=output_dirs)
-    make_table_solvers(records, group_name="solvers_small", base_filename="table_solvers_small", title="SAT Solver Performance Comparison (Small Graphs)", output_dirs=output_dirs)
-    make_table_solvers(records, group_name="solvers_medium", base_filename="table_solvers_medium", title="SAT Solver Performance Comparison (Medium Graphs)", output_dirs=output_dirs)
-    make_table_methods(records, output_dirs=output_dirs)
-    make_table_per_dataset(records, output_dirs=output_dirs)
-    make_table_methods_family(records, output_dirs=output_dirs)
-    make_table_methods_large(records, output_dirs=output_dirs)
-    make_table_methods_large_seeds(records, output_dirs=output_dirs)
-
+    make_table_encoding_comparison(records, output_dirs=output_dirs)
+    make_table_exact_solvers(records, output_dirs=output_dirs)
+    make_table_solvers(
+        records,
+        group_name="solvers_medium",
+        base_filename="table_solvers_medium",
+        title="SAT Solver Performance Comparison (Medium Graphs)",
+        output_dirs=output_dirs,
+    )
     print(f"\nAll tables generated successfully in {output_dir}/!")
 
 if __name__ == "__main__":

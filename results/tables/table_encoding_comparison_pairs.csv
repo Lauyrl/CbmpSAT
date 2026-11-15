@@ -1,0 +1,5 @@
+dataset,n_control_configs,n_both_encodings,n_order_only_configs,n_pairwise_only_configs,n_unmatched_control_configs,n_matched_repetition_pairs,n_unmatched_repetition_runs,n_order_only_repetitions,n_pairwise_only_repetitions,n_paired_optimal_runtime,n_equal_optimum_pairs,n_mismatched_optimum_pairs,n_optimal_pairs_missing_or_nonpositive_timing,n_timeout_pairs,n_feasible_pairs,n_other_status_pairs,median_order_s_paired_optimal,median_pairwise_s_paired_optimal,median_pairwise_over_order
+14_bus,1,1,0,0,0,1,0,0,0,1,1,0,0,0,0,0,0.000223,0.000446,1.995329
+30_bus,1,1,0,0,0,1,0,0,0,1,1,0,0,0,0,0,0.042767,0.113317,2.649650
+494_bus_n40,1,1,0,0,0,1,0,0,0,1,1,0,0,0,0,0,0.947735,0.920627,0.971397
+662_bus_n40,1,1,0,0,0,1,0,0,0,1,1,0,0,0,0,0,0.871398,14.770329,16.950145

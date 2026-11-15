@@ -10,7 +10,7 @@ All datasets are stored in standard MatrixMarket coordinate format (`.mtx`), rep
 - This repository workspace contains **16 benchmark bus graph instances** on disk, validated by `scripts/check_datasets.py`:
   - **4 full power bus graphs** from the standard Harwell–Boeing collection (`14_bus`, `30_bus`, `494_bus`, `662_bus`).
   - **12 induced subgraphs** systematically generated from `494_bus` and `662_bus` at sizes $N \in \{40, 50, 60, 80, 100, 150\}$ for scalability, ablation, and phase-transition analysis.
-- **Integrity Guarantee**: We strictly document actual dataset provenance and **do not fabricate** synthetic or missing instances. All experiments in `experiments/configs.yaml` reference solely the 16 verified instances.
+- **Integrity Guarantee**: We strictly document actual dataset provenance and **do not fabricate** synthetic or missing instances. All dataset names resolved by the groups in `experiments/configs.yaml` refer to the 16 verified instances on disk. This is a dataset-coverage statement, not a claim that every configured experiment group has been executed.
 
 ---
 
@@ -41,7 +41,7 @@ All datasets are stored in standard MatrixMarket coordinate format (`.mtx`), rep
 
 All 16 instances are checked automatically via:
 ```bash
-./CBMP/bin/python scripts/check_datasets.py --config experiments/configs.yaml --dataset-dir datasets
+python scripts/check_datasets.py --config experiments/configs.yaml --dataset-dir datasets
 ```
 Which confirms 100% presence and integrity without missing dependencies.
 
