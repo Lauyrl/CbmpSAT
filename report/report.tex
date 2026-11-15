@@ -353,11 +353,11 @@ Dataset & $N$ & $|E|$ & CaDiCaL 195 & Glucose 4 & MapleChrono & MiniSat 2.2 & Li
 \textbf{PAR2 (s)} & - & - & \textbf{35.59} & 1200.00 & 998.89 & 1200.00 & 173.14 \\
 \textbf{Speedup (geom) [3/3]} & - & - & \textbf{1.00$\times$} & - & - & - & 0.21$\times$ \\
 \bottomrule
-\multicolumn{8}{l}{\footnotesize TO($k$): timeout at 600s with incumbent $k$; PAR2 assigns 1200s to a timeout. --: no tracked run, not a timeout. Table values are retained historical summaries and cannot be reconstructed from the four-record pilot JSONL.} \\
+\multicolumn{8}{l}{\footnotesize TO($k$): timeout at 600s with incumbent $k$; PAR2 assigns 1200s to a timeout. --: no tracked run, not a timeout. Table values are retained historical summaries from the Phase C archive and are not reconstructed from the current 44-record snapshot.} \\
 \end{tabular}
 \end{table}
 
-On medium graphs ($N = 60, 80$), solver performance diverges sharply. The three populated rows are historical reported results, not a newly regenerated summary from the tracked pilot file. The fourth configured dataset is displayed as missing rather than assigned a fabricated status. No claim is made that these historical summaries are reproducible from the currently committed raw data. This prevents the narrative from treating the three historically reported instances as the complete four-instance configuration.
+On medium graphs ($N = 60, 80$), solver performance diverges sharply. The displayed values are historical Phase C results, not a newly regenerated summary from the current snapshot. The table preserves its original coverage and missing-value notation; it should not be interpreted as a complete representation of the four-instance configuration or as output from the current `results/runs.jsonl`.
 
 \begin{figure}
 \centering
@@ -420,7 +420,7 @@ Dataset & $N$ & $|E|$ & Best SAT & CP-SAT & CPLEX MIP & CPLEX CP & Gurobi \\
 
 \paragraph{SAT vs. CP-SAT:} Both Best SAT and CP-SAT solve all 7 instances to global optimality. CP-SAT demonstrates fast filtering on the $N=60$ instances (\texttt{494\_bus\_n60}: 5.28~s vs. 34.14~s; \texttt{662\_bus\_n60}: 5.54~s vs. 26.84~s), leveraging integer domain propagation. However, as graph size scales to $N=80$ (\texttt{662\_bus\_n80}), SAT decisively outperforms CP-SAT (45.77~s vs. 101.21~s, a $2.21\times$ speedup for SAT). Across all 7 instances, SAT achieves a lower mean runtime (15.61~s vs. 16.32~s).
 
-\paragraph{CPLEX CP Optimizer and Gurobi:} Both are implemented as distinct exact baselines and are configured in the experiment pipeline. No raw execution record for either solver is present in the tracked pilot data, so their cells are intentionally marked missing. CPLEX CP and Gurobi must not be interpreted as timed out or unavailable without an actual execution record.
+\paragraph{CPLEX CP Optimizer and Gurobi:} Both are implemented as distinct exact baselines and are configured in the experiment pipeline. The historical Phase C table contains no execution records for either solver, so their cells are intentionally marked missing there. The current snapshot's solver-level status records are a separate partial experiment and do not retroactively populate this historical table. CPLEX CP and Gurobi must not be interpreted as timed out or unavailable without an actual execution record.
 
 % --- TABLE 4: METHODS LARGE ---
 \begin{table}
@@ -621,7 +621,7 @@ Our empirical findings reveal clear trade-offs:
 
 In this work, we presented an exact SAT-based framework for the Cyclic Bandwidth Minimization Problem (CBMP). By integrating Order Encoding for circular distance bounds, Commander Encoding for bijective permutation constraints, and mathematically sound rotation and reflection symmetry breaking, our approach prunes the $2N$-fold dihedral symmetry inherent to circular layouts.
 
-The report preserves historical comparisons on 16 benchmark instances. The branch additionally tracks a 44-record exploratory batch in \\texttt{results/} (24 OPTIMAL, 12 TIMEOUT, 4 UNAVAILABLE, 3 SIZE_LIMIT, and 1 FEASIBLE), spanning \\texttt{encodings}, \\texttt{solvers\\_medium}, and \\texttt{exact\\_solvers}. Its environment metadata records source commit \\texttt{41271c4119a306ace4b42e734093ea773ab30bc2-dirty}; this dirty-source marker prevents exact source reconstruction. The 44 records are not a clean final archive and do not regenerate all historical report tables. The following quantitative statements summarize those historical tables and should not be interpreted as independently reproduced by the currently archived raw data:
+The report preserves historical comparisons on 16 benchmark instances. The branch additionally tracks a 44-record exploratory batch in \\texttt{results/} (24 OPTIMAL, 12 TIMEOUT, 4 UNAVAILABLE, 3 SIZE_LIMIT, and 1 FEASIBLE), spanning \\texttt{encodings}, \\texttt{solvers\\_medium}, and \\texttt{exact\\_solvers}. Its environment metadata records source commit \\texttt{41271c4119a306ace4b42e734093ea773ab30bc2-dirty}; this dirty-source marker prevents exact source reconstruction. The current batch is partial and does not regenerate the historical Phase C/Phase D report tables. Table-to-source mappings and known coverage differences are recorded in \\texttt{docs/EXPERIMENT\\_PROVENANCE.md}. The following quantitative statements summarize those historical tables and should not be interpreted as independently reproduced by the current raw batch:
 \begin{enumerate}
     \item CaDiCaL~195 is the top-performing SAT engine for CBMP, solving medium and large instances where Glucose~4, MiniSat~2.2, and MapleChrono time out.
     \item Dual symmetry breaking achieves up to a $22.77\times$ speedup on medium boundary graphs and reduces median solve time across randomized graph families by more than $59\%$.

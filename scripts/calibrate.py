@@ -4,7 +4,7 @@ scripts/calibrate.py
 
 Run SAT solver (Cadical195, rotation+reflection+heuristic) on candidate subgraph instances
 with a 120s timeout to calibrate runtime, memory, and difficulty.
-Outputs to calibration/ (not results/).
+Outputs to the local, git-ignored calibration/ directory (not results/ or the archived docs/calibration/ records).
 """
 
 import os

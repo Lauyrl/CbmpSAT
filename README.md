@@ -227,14 +227,14 @@ Repository chỉ sử dụng **một thư mục kết quả hiện hành: result
 - results/tables/: bảng CSV/LaTeX được sinh từ raw records.
 - results/figures/: biểu đồ được sinh từ raw records.
 
-Snapshot hiện được lưu có 44 records: 24 OPTIMAL, 12 TIMEOUT, 4 UNAVAILABLE, 3 SIZE_LIMIT, 1 FEASIBLE; thuộc các nhóm encodings, exact_solvers, solvers_medium. Metadata ghi nhận source commit 41271c4119a306ace4b42e734093ea773ab30bc2-dirty. Vì metadata chỉ ra working tree dirty, snapshot này là kết quả exploratory được bảo tồn, chưa phải bằng chứng tái lập từ source commit sạch.
+Snapshot đang được lưu có 44 records: 24 OPTIMAL, 12 TIMEOUT, 4 UNAVAILABLE, 3 SIZE_LIMIT và 1 FEASIBLE; thuộc ba nhóm `encodings` (4), `exact_solvers` (24) và `solvers_medium` (20). Đây là thống kê của snapshot tại thời điểm ghi trong `results/env.json`, không phải cam kết số lượng bất biến. Metadata ghi nhận source commit `41271c4119a306ace4b42e734093ea773ab30bc2-dirty`; do đó snapshot là exploratory archive, không phải benchmark được tái lập từ source commit sạch. Xem `docs/EXPERIMENT_PROVENANCE.md` trước khi sử dụng số liệu trong report.
 
 Không tạo thêm results_v2/, results/pilot/ hoặc results/final/. Khi chạy tiếp, dùng cùng results/; runner hỗ trợ resume và kiểm tra commit để tránh trộn dữ liệu không tương thích.
 
 ### Dữ liệu lịch sử trong docs/
 
-- docs/data/: raw runs và metadata lịch sử, không phải nguồn mặc định của runner.
-- docs/phaseA/, phaseA2/, phaseB/, phaseC/, phaseD/: bảng và cross-validation lưu theo từng giai đoạn nghiên cứu. Đây là hồ sơ lịch sử; không được coi là output mới nhất nếu chưa đối chiếu provenance.
+- docs/data/: hai raw archives lịch sử (`runs.jsonl`, `runs_ablation.jsonl`) và metadata tương ứng; không phải nguồn mặc định của runner.
+- docs/phaseA/, phaseA2/, phaseB/, phaseC/, phaseD/: bảng và cross-validation theo từng giai đoạn. Đây là các snapshot nghiên cứu độc lập, không tự động gộp hoặc coi phase sau là thay thế phase trước; mapping chi tiết nằm trong `docs/EXPERIMENT_PROVENANCE.md`.
 - docs/pilot/: dữ liệu pilot lịch sử.
 - docs/calibration/: kết quả hiệu chuẩn lịch sử. Khác với output cục bộ calibration/ của scripts/calibrate.py.
 
@@ -291,6 +291,7 @@ Kết quả biên dịch là `report/report.pdf`. Số trang phụ thuộc nội
 
 ## 10. Tài liệu lưu trữ và mã nguồn legacy
 
+- `docs/EXPERIMENT_PROVENANCE.md` ánh xạ raw archives, phase tables và report tables; phân biệt rõ snapshot hiện hành với kết quả lịch sử.
 - `docs/README.md` mô tả vai trò của dữ liệu lịch sử, các phase và quy tắc provenance.
 - `reports/code_quality_audit.md` là báo cáo audit kỹ thuật được giữ lại làm tài liệu tham khảo; cần đọc kèm commit/HEAD ghi trong báo cáo.
 - `legacy/bmp.py` là triển khai CBMP đời đầu, được giữ để tham chiếu lịch sử và không thuộc pipeline hiện hành.
