@@ -3409,6 +3409,64 @@ def make_table_methods_large_seeds(records, base_filename="table_methods_large_s
     print(f"Table saved: {base_filename}.csv in {output_dirs[0]}/")
     return df
 
+def make_table_exact_solvers(records, base_filename="table_exact_solvers", output_dirs=("results/tables",)):
+    """Write the current exact_solvers records without collapsing distinct outcomes."""
+    if isinstance(output_dirs, str):
+        output_dirs = (output_dirs,)
+    rows = []
+    for record in records:
+        if not is_valid_record_dict(record):
+            continue
+        nested = record.get("reps")
+        candidates = nested if isinstance(nested, list) and nested else [record]
+        for item in candidates:
+            if not is_valid_record_dict(item):
+                continue
+            groups = item.get("groups", record.get("groups", []))
+            if "exact_solvers" not in groups:
+                continue
+            solver = normalize_solver_alias(item.get("solver"))
+            if solver in ("cadical195", "glucose4", "maplechrono", "minisat22", "lingeling"):
+                encoding = str(item.get("encoding") or item.get("config", {}).get("encoding") or "order").strip().lower()
+                method = f"SAT / {encoding.title()}"
+            elif solver == "cp_sat":
+                method = "CP-SAT"
+            elif solver == "cplex":
+                method = "CPLEX MIP"
+            elif solver == "cplex_cp":
+                method = "CPLEX CP"
+            elif solver == "gurobi":
+                method = "Gurobi"
+            else:
+                method = str(item.get("method") or solver or "unknown")
+            rows.append({
+                "dataset": item.get("dataset"),
+                "N": item.get("N"),
+                "edges": item.get("num_edges"),
+                "method": method,
+                "solver": solver,
+                "encoding": item.get("encoding") or item.get("config", {}).get("encoding", ""),
+                "status": normalize_status(item.get("status")) or "UNKNOWN",
+                "best_ub": validate_best_ub(item.get("best_ub")),
+                "best_lb": validate_best_ub(item.get("best_lb")),
+                "solve_time_s": validate_solve_time(item.get("solve_time")),
+                "wall_time_s": validate_solve_time(item.get("wall_time")),
+                "variables": strict_int(item.get("num_vars"), min_val=0),
+                "clauses": strict_int(item.get("num_clauses"), min_val=0),
+            })
+    if not rows:
+        logger.warning("No exact_solvers records found; no exact-solver table generated.")
+        return None
+    df = pd.DataFrame(rows).sort_values(
+        ["N", "dataset", "method"], kind="stable"
+    )
+    for out_dir in output_dirs:
+        os.makedirs(out_dir, exist_ok=True)
+        df.to_csv(os.path.join(out_dir, f"{base_filename}.csv"), index=False)
+    print(f"Table saved: {base_filename}.csv in {output_dirs[0]}/")
+    return df
+
+
 def main():
     print("=" * 70)
     print("ANALYSIS: GENERATING LATEX AND CSV TABLES")
@@ -3453,6 +3511,7 @@ def main():
     make_table_solvers(records, group_name="solvers_medium", base_filename="table_solvers_medium", title="SAT Solver Performance Comparison (Medium Graphs)", output_dirs=output_dirs)
     make_table_encoding_comparison(records, output_dirs=output_dirs)
     make_table_methods(records, output_dirs=output_dirs)
+    make_table_exact_solvers(records, output_dirs=output_dirs)
     make_table_per_dataset(records, output_dirs=output_dirs)
     make_table_methods_family(records, output_dirs=output_dirs)
     make_table_methods_large(records, output_dirs=output_dirs)
