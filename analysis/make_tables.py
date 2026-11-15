@@ -3501,22 +3501,17 @@ def main():
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
 
-    # Step 2: Make tables
+    # Step 2: Generate only tables supported by the latest tracked raw snapshot.
     output_dirs = (output_dir,)
-    make_table_ablation(records, group_name="ablation_small", base_filename="table_ablation_small", title="Ablation Study: Small Graphs", output_dirs=output_dirs)
-    make_table_ablation(records, group_name="ablation_medium", base_filename="table_ablation_medium", title="Ablation Study: Medium Graph (662_bus_n60)", output_dirs=output_dirs)
-    make_table_ablation_family(records, base_filename="table_ablation_family", output_dirs=output_dirs)
-    make_table_ablation_phases(records, base_filename="table_ablation_phases", output_dirs=output_dirs)
-    make_table_solvers(records, group_name="solvers_small", base_filename="table_solvers_small", title="SAT Solver Performance Comparison (Small Graphs)", output_dirs=output_dirs)
-    make_table_solvers(records, group_name="solvers_medium", base_filename="table_solvers_medium", title="SAT Solver Performance Comparison (Medium Graphs)", output_dirs=output_dirs)
     make_table_encoding_comparison(records, output_dirs=output_dirs)
-    make_table_methods(records, output_dirs=output_dirs)
     make_table_exact_solvers(records, output_dirs=output_dirs)
-    make_table_per_dataset(records, output_dirs=output_dirs)
-    make_table_methods_family(records, output_dirs=output_dirs)
-    make_table_methods_large(records, output_dirs=output_dirs)
-    make_table_methods_large_seeds(records, output_dirs=output_dirs)
-
+    make_table_solvers(
+        records,
+        group_name="solvers_medium",
+        base_filename="table_solvers_medium",
+        title="SAT Solver Performance Comparison (Medium Graphs)",
+        output_dirs=output_dirs,
+    )
     print(f"\nAll tables generated successfully in {output_dir}/!")
 
 if __name__ == "__main__":
