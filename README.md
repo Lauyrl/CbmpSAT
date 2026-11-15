@@ -196,7 +196,6 @@ Các bảng của snapshot hiện tại:
 - `table_encoding_comparison.csv`: kết quả theo từng dataset của Order và Pairwise Encoding, lấy SAT records từ cả hai group `encodings` và `exact_solvers`.
 - `table_encoding_comparison_pairs.csv`: đối chiếu cặp Order/Pairwise; chỉ tính runtime ratio khi hai encoding chứng minh cùng optimum.
 - `table_exact_solvers.csv`: từng run trong nhóm `exact_solvers`, giữ riêng `OPTIMAL`, `FEASIBLE`, `SIZE_LIMIT`, và `UNAVAILABLE`.
-- `table_methods.csv`: bảng tổng hợp các phương pháp giải chính xác.
 - `table_solvers_medium.csv`: kết quả 5 SAT solvers trên bốn medium subgraphs.
 
 Các lần chạy hiện tại chưa có dữ liệu cho ablation, randomized-label family, phase decomposition, small-solver comparison, hay SAT-vs-CP-SAT trên full-size graphs. Script phân tích có thể hỗ trợ các nhóm này khi có record tương ứng, nhưng không được xem file output cũ hoặc cấu hình trong YAML là bằng chứng rằng nhóm đã chạy.
