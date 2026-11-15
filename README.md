@@ -63,9 +63,11 @@ CBMP/
 │   ├── calibrate.py        # Thử nghiệm hiệu chuẩn thời gian và tài nguyên
 │   └── make_subgraphs.py   # Tạo các đồ thị con cảm ứng liên thông
 ├── tests/                  # Bộ test tự động (brute force, baselines, mocked CP/Gurobi, encodings)
-├── results/                # Nguồn kết quả thực nghiệm duy nhất (runs.jsonl, env.json, tables/, figures/)
-├── results/             # Kết quả chạy tạm; mặc định bị loại khỏi Git
-├── report/                 # Báo cáo khoa học LaTeX & hình ảnh
+├── results/                # Snapshot hiện hành: runs.jsonl, env.json, tables/, figures/
+├── docs/                   # Dữ liệu lịch sử theo phase, calibration và provenance
+├── reports/                # Báo cáo audit kỹ thuật
+├── legacy/                 # Mã triển khai cũ, không dùng trong pipeline hiện hành
+├── report/                 # Báo cáo khoa học LaTeX & hình ảnh được chọn
 ├── requirements.txt
 ├── pytest.ini
 └── README.md
@@ -216,29 +218,40 @@ python analysis/make_plots.py results/runs.jsonl --output-dir results/figures
 
 ---
 
-## 7. Hoàn thiện kết quả (Finalize)
+## 7. Trạng thái và quy ước kết quả (Results & Provenance)
 
-**Trạng thái dữ liệu tại branch hiện tại (15/11/2026):** `results/` đang có 44 records (24 OPTIMAL, 12 TIMEOUT, 4 UNAVAILABLE, 3 SIZE_LIMIT, 1 FEASIBLE), thuộc các nhóm `encodings`, `exact_solvers` và `solvers_medium`. Metadata ghi nhận commit nguồn `41271c4119a306ace4b42e734093ea773ab30bc2-dirty`; do đó đây là dữ liệu từ working tree dirty, chưa đủ điều kiện gắn nhãn reproducible/final. Không chuyển nguyên trạng thành `results/final/`. Cần tái chạy hoặc xác minh snapshot mã nguồn dirty trước khi phát hành official archive.
+Repository chỉ sử dụng **một thư mục kết quả hiện hành: results/**:
 
-Chỉ phát hành official archive sau khi tất cả điều kiện sau được thỏa mãn:
-1. Chốt và commit mã nguồn sạch; không chạy benchmark khi working tree dirty.
-2. Chạy các nhóm còn thiếu hoặc retry các trạng thái tạm thời theo đúng cấu hình, trên cùng commit sạch.
-3. Lưu metadata mới, trong đó `git_commit` phải trùng HEAD và `git_dirty` phải là `false`.
-4. Kiểm tra từng JSONL record, independent solution validation, matched pairs, timeout/license statuses và đối chiếu bảng/hình.
-5. Chỉ sau khi các kiểm tra trên đạt, sao chép raw runs và metadata vào `results/final/`, sinh lại tables/figures từ đúng archive, rồi commit:
-   ```bash
-   mkdir -p results/final
-   cp results/runs.jsonl results/final/runs.jsonl
-   cp results/env.json results/final/env.json
-   python analysis/make_tables.py results/final/runs.jsonl --output-dir results/final/tables
-   python analysis/make_plots.py results/final/runs.jsonl --output-dir results/final/figures
-   git add results/final
-   git commit -m "data: archive validated final CBMP experiments"
-   ```
-Snapshot 44 record hiện tại vẫn mang `git_dirty=true`; cần chạy lại sau khi chốt commit sạch trước khi báo cáo tính tái lập.
+- results/runs.jsonl: raw records của snapshot hiện hành.
+- results/env.json: metadata môi trường và commit nguồn tương ứng.
+- results/tables/: bảng CSV/LaTeX được sinh từ raw records.
+- results/figures/: biểu đồ được sinh từ raw records.
 
----
+Snapshot hiện được lưu có 44 records: 24 OPTIMAL, 12 TIMEOUT, 4 UNAVAILABLE, 3 SIZE_LIMIT, 1 FEASIBLE; thuộc các nhóm encodings, exact_solvers, solvers_medium. Metadata ghi nhận source commit 41271c4119a306ace4b42e734093ea773ab30bc2-dirty. Vì metadata chỉ ra working tree dirty, snapshot này là kết quả exploratory được bảo tồn, chưa phải bằng chứng tái lập từ source commit sạch.
 
+Không tạo thêm results_v2/, results/pilot/ hoặc results/final/. Khi chạy tiếp, dùng cùng results/; runner hỗ trợ resume và kiểm tra commit để tránh trộn dữ liệu không tương thích.
+
+### Dữ liệu lịch sử trong docs/
+
+- docs/data/: raw runs và metadata lịch sử, không phải nguồn mặc định của runner.
+- docs/phaseA/, phaseA2/, phaseB/, phaseC/, phaseD/: bảng và cross-validation lưu theo từng giai đoạn nghiên cứu. Đây là hồ sơ lịch sử; không được coi là output mới nhất nếu chưa đối chiếu provenance.
+- docs/pilot/: dữ liệu pilot lịch sử.
+- docs/calibration/: kết quả hiệu chuẩn lịch sử. Khác với output cục bộ calibration/ của scripts/calibrate.py.
+
+### Quy trình cập nhật snapshot
+
+1. Commit mã nguồn sạch trước khi chạy benchmark.
+2. Chạy các nhóm cần thiết với --record-metadata và output mặc định results/.
+3. Resume chỉ khi runner xác nhận commit tương thích; không dùng --force-resume để trộn kết quả khác source nếu chưa có lý do và hồ sơ giải trình.
+4. Kiểm tra JSONL, metadata, trạng thái solver và nghiệm bằng validation độc lập.
+5. Sinh lại bảng và biểu đồ từ đúng results/runs.jsonl:
+
+```bash
+python analysis/make_tables.py results/runs.jsonl --output-dir results/tables
+python analysis/make_plots.py results/runs.jsonl --output-dir results/figures
+```
+
+6. Nếu metadata ghi nhận dirty source, giữ nhãn exploratory; không tuyên bố reproducible/final.
 ## 8. Chạy kiểm thử tự động (Running Tests)
 
 Toàn bộ các thuật toán và mô hình được kiểm thử tự động bằng `pytest`:
@@ -276,12 +289,12 @@ Kết quả biên dịch là `report/report.pdf`. Số trang phụ thuộc nội
 
 ---
 
-## 10. Ghi chú về tài liệu audit và mã nguồn cũ
+## 10. Quy ước dữ liệu lịch sử trong docs/\n\nCác thư mục docs/data/, docs/phaseA/, docs/phaseA2/, docs/phaseB/, docs/phaseC/, docs/phaseD/, docs/pilot/ và docs/calibration/ được giữ nguyên đường dẫn để không phá vỡ liên kết/tài liệu cũ. Chúng là hồ sơ lịch sử theo giai đoạn, không phải output mặc định của pipeline. Mỗi bảng lịch sử chỉ được dùng làm bằng chứng định lượng khi đã xác minh được nguồn dữ liệu, cấu hình và commit tạo ra nó.\n\n## 11. Ghi chú về tài liệu audit và mã nguồn cũ
 
 - `reports/code_quality_audit.md` là báo cáo audit kỹ thuật được giữ lại làm tài liệu tham khảo lịch sử. Các ghi chú audit ngắn từ `fix/audit4` đã được loại bỏ vì chỉ lặp lại trạng thái branch/HEAD/test cũ.
-- `results/runs.jsonl` và `results/env.json` là hai file raw result/metadata duy nhất. Các file kết quả cũ ở thư mục con đã được loại bỏ; lịch sử Git trước khi dọn vẫn được bảo toàn.
+- `results/runs.jsonl` và `results/env.json` là cặp raw result/metadata duy nhất của snapshot hiện hành. Dữ liệu lịch sử được giữ riêng trong docs/; không dùng làm input mặc định cho pipeline hiện hành.
 
-## 11. Ghi chú mã nguồn cũ (Legacy)
+## 12. Ghi chú mã nguồn cũ (Legacy)
 
 - `legacy/bmp.py`: Là phiên bản triển khai CBMP đời đầu, không còn module nào trong dự án phụ thuộc hoặc import file này. Đã được chuyển vào thư mục `legacy/` để bảo tồn lịch sử phát triển.
 

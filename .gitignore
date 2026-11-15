@@ -19,20 +19,16 @@ CBMP/
 *.synctex.gz
 *.pdf
 
-# Local references and generated experiment outputs
+# Local references and temporary experiment outputs
 ref/
-results_v2/
 results/smoke/
 calibration/
 pilot_ablation/
 analysis/tables/
 analysis/figures/
-*.bak
-
-# Keep the curated official archive trackable.
-# Do not ignore results/final: raw runs, metadata, tables and figures belong there.
 
 # Editor and patch backups
+*.bak
 *~
 *.swp
 *.swo
