@@ -41,7 +41,7 @@ The report figure assets are not automatically synchronized with results/figures
 | results/env.json | Environment/source metadata for current snapshot | No; cited descriptively in manuscript/data availability. |
 | results/tables/ | Tables generated from current raw records | No; not imported by the LaTeX manuscript. |
 | results/figures/ | Figures generated from current raw records | No; report uses curated files in report/figures/. |
-| docs/phaseC/, docs/phaseD/ | Historical tables supporting manuscript values | Yes, as documented evidence sources for embedded values. |
+| `docs/phaseC/`, `docs/phaseD/` | Historical tables supporting manuscript values | Yes, as documented evidence sources for embedded values. |
 
 ## 4. Updating a report artifact safely
 
@@ -54,4 +54,4 @@ The report figure assets are not automatically synchronized with results/figures
 
 ## 5. Known limitation
 
-The repository currently tracks historical report tables and curated figures alongside a newer but exploratory raw snapshot. This map makes the distinction explicit; it does not claim that the historical figures have complete raw-run provenance or that the current snapshot reproduces the historical manuscript results. A clean benchmark rerun and report regeneration remain user-executed experimental work.
+The report retains historical tables and curated figures alongside a newer but exploratory raw snapshot. Phase C/Phase D source tables are retained; earlier phase, pilot and calibration materials removed from this branch are not available as supporting files. This map does not claim that historical figures have complete raw-run provenance or that the current snapshot reproduces the historical manuscript results. A clean benchmark rerun and report regeneration remain separate experimental work.
