@@ -20,7 +20,7 @@ A research and evaluation repository for solving the **Cyclic Bandwidth Minimiza
 python3 -m venv .venv
 source .venv/bin/activate
 
-# Cài đặt các gói theo requirements.txt (đã ghim phiên bản chuẩn)
+# Cài đặt các dependency bắt buộc theo requirements.txt
 pip install -r requirements.txt
 ```
 
@@ -49,7 +49,7 @@ CBMP/
 │   ├── cplex_cp_cbmp.py    # Baseline IBM CPLEX CP Optimizer
 │   └── gurobi_cbmp.py      # Baseline Gurobi MIP
 ├── experiments/
-│   ├── configs.yaml        # Cấu hình các nhóm thực nghiệm (per_dataset, solvers, methods, ablation, encodings, exact_solvers)
+│   ├── configs.yaml        # Cấu hình các nhóm thực nghiệm
 │   └── run_experiments.py # Trình điều khiển thực nghiệm (deduplication, resuming, canonical keys, runner)
 ├── analysis/
 │   ├── make_tables.py      # Sinh bảng CSV/LaTeX từ results/runs.jsonl
