@@ -276,18 +276,7 @@ The RCM layout is evaluated via Eq.~(\ref{eq:cyclic_distance}) to obtain an init
 \section{Experiments}
 
 \paragraph{Evidence and reproducibility status.}
-The numerical tables and plots in this section are retained from earlier exploratory
-runs. At the current repository revision, the tracked raw archive contains only four
-pilot records (\texttt{14\_bus}, \texttt{30\_bus}, \texttt{494\_bus}, and
-\texttt{662\_bus}, with a 60-second limit). It does not contain the raw repetition
-records needed to independently regenerate the ablation, solver-family, phase, or
-large-instance tables below. These historical derived values must therefore be
-interpreted as provisional and are not claimed as independently reproduced by the
-currently tracked data. The final benchmark conclusions should be updated only after
-the complete raw JSONL, environment metadata, generated tables, and figures have been
-archived and validated. The exact-solver/encoding analysis also requires both
-\texttt{encodings} and \texttt{exact\_solvers} group records; the analysis script
-retains this group provenance when constructing matched comparisons.
+The numerical tables and plots in this section are retained from the historical Phase C and Phase D archives, not generated from the current 44-record exploratory snapshot. The current snapshot is partial: it covers four encoding records, 24 exact-solver records on four small instances, and 20 medium SAT-solver records. It does not contain the complete repetition-level and cross-method raw observations needed to regenerate all historical ablation, solver-family, phase, and large-instance tables below. These historical derived values are therefore reported with their archived phase provenance and must not be represented as newly reproduced by the current snapshot. The table-to-source mapping and limitations are documented in \texttt{docs/EXPERIMENT\_PROVENANCE.md}. The exact-solver/encoding analysis requires records from the corresponding configured groups; the analysis script retains this group provenance when constructing matched comparisons.
 % =========================================================================
 
 \subsection{Experimental Setup}
@@ -331,7 +320,7 @@ Dataset & $N$ & $|E|$ & CaDiCaL 195 & Glucose 4 & MapleChrono & MiniSat 2.2 & Li
 \end{table}
 
 \subsection{SAT Solver Comparison}
-Table~\ref{tab:table_solvers_small} and Table~\ref{tab:table_solvers_medium} present the comparison among the five SAT solvers on small and medium graphs, respectively. The medium-graph configuration includes four target instances. The table retains three previously reported rows and explicitly marks \texttt{494\_bus\_n80} as having no tracked run. The available committed pilot JSONL has no \texttt{solvers\_medium} records; therefore, the historical timings and status cells below cannot be independently regenerated from the currently tracked raw results.
+Table~\ref{tab:table_solvers_small} and Table~\ref{tab:table_solvers_medium} present the comparison among the five SAT solvers on small and medium graphs, respectively. The medium-graph configuration includes four target instances. The table is a historical summary archived from Phase C; it is not regenerated from the current 44-record snapshot. The current snapshot does contain 20 \texttt{solvers\_medium} records across all four configured instances, but those measurements must not be silently substituted for the historical table values. The source mapping and coverage differences are documented in \texttt{docs/EXPERIMENT\_PROVENANCE.md}.
 
 On small graphs ($N \le 40$), all five solvers comfortably solve all instances within seconds. Glucose~4 and CaDiCaL~195 exhibit the fastest runtimes, achieving geometric mean speedups of $1.21\times$ and $1.00\times$, while MapleChrono and Lingeling require roughly $3\text{--}4\times$ longer.
 
@@ -374,7 +363,7 @@ The repository provides direct Pairwise Encoding and Order Encoding for CBMP. Th
 The current \\texttt{results/runs.jsonl} snapshot includes records from the \\texttt{encodings} group, but its metadata identifies a dirty source tree. Quantitative Pairwise-vs-Order claims must therefore be checked against the actual records and regenerated analysis outputs; no missing runtime, CNF size, optimum, timeout, or paired sample is inferred from configuration alone.
 
 \paragraph{CNSPlots visualization.}
-The plotting pipeline uses the CNSPlots \texttt{boxplot} API for validated OPTIMAL runtimes and reports the status coverage and sample counts for both encodings. It skips the comparison chart unless both encodings have at least one valid OPTIMAL runtime. When a valid plot is generated, the pipeline saves it to both the analysis output directory and \texttt{report/figures/}; the report includes it only when that file exists. Because no \texttt{encodings} records are currently committed, no CNSPlots encoding-comparison figure is currently available.
+The plotting pipeline uses the CNSPlots \texttt{boxplot} API for validated OPTIMAL runtimes and reports the status coverage and sample counts for both encodings. It skips the comparison chart unless both encodings have at least one valid OPTIMAL runtime. When a valid plot is generated, the pipeline saves it to both the analysis output directory and \texttt{report/figures/}; the report includes it only when that file exists. The current snapshot contains four \texttt{encodings} records (three Order and one Pairwise), all OPTIMAL. The CNSPlots comparison image is optional and is included only if a verified generated image exists; the current report archive does not contain that image.
 
 \IfFileExists{figures/cnsplots_encoding_comparison.png}{
 \begin{figure}[t]
@@ -388,7 +377,7 @@ The plotting pipeline uses the CNSPlots \texttt{boxplot} API for validated OPTIM
 }
 
 \subsection{Method Comparison: SAT vs. CP-SAT vs. CPLEX}
-The target comparison comprises Best SAT, OR-Tools CP-SAT, IBM CPLEX MIP, IBM CPLEX CP Optimizer, and Gurobi. The tracked raw pilot file does not contain records from the \texttt{exact\_solvers}, \texttt{cplex\_cp}, or \texttt{gurobi} groups. The table therefore retains legacy SAT/CP-SAT/CPLEX MIP values for context and marks CPLEX CP and Gurobi as missing; it is not a newly regenerated exact-solver benchmark summary.
+The target comparison comprises Best SAT, OR-Tools CP-SAT, IBM CPLEX MIP, IBM CPLEX CP Optimizer, and Gurobi. The current snapshot contains a partial \texttt{exact\_solvers} batch (24 records over four small instances), but it does not reproduce the seven-instance historical table below. The table retains Phase C SAT/CP-SAT/CPLEX MIP values for context and marks CPLEX CP and Gurobi as missing; it is not a newly regenerated exact-solver benchmark summary.
 
 % --- TABLE 3: METHODS COMPARISON ---
 \begin{table}
@@ -412,7 +401,7 @@ Dataset & $N$ & $|E|$ & Best SAT & CP-SAT & CPLEX MIP & CPLEX CP & Gurobi \\
 \textbf{Mean Time (s)} & - & - & \textbf{15.612} & 16.324 & - & -- & -- \\
 \textbf{Speedup (geom) [5/7]} & - & - & 1.00$\times$ & \textbf{1.87$\times$} & - & -- & -- \\
 \bottomrule
-\multicolumn{8}{l}{\footnotesize SL: CPLEX MIP Community Edition size limit. --: no committed run record for CPLEX CP/Gurobi. Historical SAT/CP-SAT/CPLEX MIP values cannot be regenerated from the tracked pilot JSONL; this is not a verified exact\_solvers summary.} \\
+\multicolumn{8}{l}{\footnotesize SL: CPLEX MIP Community Edition size limit. --: no committed run record for CPLEX CP/Gurobi. Historical SAT/CP-SAT/CPLEX MIP values cannot be regenerated from the current snapshot; this is not a verified current exact\_solvers summary.} \\
 \end{tabular}
 \end{table}
 
