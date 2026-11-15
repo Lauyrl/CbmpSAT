@@ -56,9 +56,9 @@ CBMP/
 │   └── make_plots.py       # Sinh cactus plots và CNSPlots encoding comparison
 ├── datasets/               # Thư mục chứa ma trận đồ thị MatrixMarket (.mtx)
 ├── scripts/
-│   ├── check_datasets.py   # Kiểm tra và cảnh báo nếu dataset trong config bị thiếu
-│   ├── calibrate.py        # Thử nghiệm hiệu chuẩn thời gian và tài nguyên
-│   └── make_subgraphs.py   # Tạo các đồ thị con cảm ứng liên thông
+│   ├── check_datasets.py   # Kiểm tra dataset trong config
+│   ├── make_subgraphs.py   # Tạo các đồ thị con cảm ứng liên thông
+│   └── prepare_submission.sh # Preflight kiểm tra trước khi nộp
 ├── tests/                  # Bộ test tự động (brute force, baselines, mocked CP/Gurobi, encodings)
 ├── results/                # Snapshot hiện hành: runs.jsonl, env.json, tables/, figures/
 ├── docs/                   # Provenance của snapshot hiện tại
