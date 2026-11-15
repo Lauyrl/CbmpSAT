@@ -115,72 +115,39 @@ Nếu thiếu file (ví dụ chưa có `14_bus.mtx`), script sẽ báo lỗi rõ
 
 ## 5. Chạy thực nghiệm (Running Experiments)
 
-File cấu hình tại `experiments/configs.yaml` định nghĩa nhiều nhóm thực nghiệm (SAT solver comparison, exact-solver comparison, encoding comparison, ablation và các nhóm mở rộng). Runner `experiments/run_experiments.py` tự động khử trùng lặp các tác vụ dùng chung cấu hình. Mặc định toàn bộ kết quả được ghi vào thư mục `results/`, là nguồn dữ liệu duy nhất của repository. Bạn có thể tùy chỉnh thư mục xuất qua cờ `--output-dir` khi thực sự cần thử nghiệm riêng.
+Các kết quả được lưu tập trung trong `results/runs.jsonl`. Snapshot mới nhất hiện có ba group: `encodings`, `exact_solvers`, và `solvers_medium`. Các group khác còn được định nghĩa trong `experiments/configs.yaml`, nhưng chưa có record trong snapshot hiện tại; cấu hình không đồng nghĩa với kết quả đã chạy.
 
-### Xem trước kế hoạch chạy (Dry Run)
-```bash
-python experiments/run_experiments.py --dry-run
-```
-
-### Chạy từng nhóm thực nghiệm cụ thể
+### Các nhóm có kết quả hiện tại
 
 ```bash
-# 1. Nhóm per_dataset (Cấu hình SAT tốt nhất trên toàn bộ dataset)
-python experiments/run_experiments.py --group per_dataset --timeout 600
-
-# 2. Nhóm solvers_small (So sánh các SAT solver trên đồ thị nhỏ: N <= 40, 5 reps)
-python experiments/run_experiments.py --group solvers_small --timeout 600
-
-# 3. Nhóm solvers_medium (So sánh các SAT solver trên đồ thị trung bình: N = 60, 80, 1 rep)
-python experiments/run_experiments.py --group solvers_medium --timeout 600
-
-# 4. Nhóm methods (So sánh SAT vs OR-Tools CP-SAT vs IBM CPLEX trên đồ thị nhỏ & trung bình)
-python experiments/run_experiments.py --group methods --timeout 600
-
-# 5. Nhóm ablation_small (Đánh giá đóng góp quay, phản xạ, heuristic trên đồ thị nhỏ, 5 reps)
-python experiments/run_experiments.py --group ablation_small --timeout 600
-
-# 6. Nhóm ablation_medium (Đánh giá ablation trên đồ thị biên trung bình 662_bus_n60, 1 rep)
-python experiments/run_experiments.py --group ablation_medium --timeout 600
-
-# 7. Nhóm ablation_family (Đánh giá ablation trên các họ hoán vị nhãn ngẫu nhiên: n40 với 10 seeds, n50 với 5 seeds, 1 rep)
-python experiments/run_experiments.py --group ablation_family --timeout 600
-
-# 8. Nhóm encodings (So sánh Order Encoding vs Pairwise Encoding trên đồ thị nhỏ)
+# Order Encoding vs Pairwise Encoding trên bốn đồ thị nhỏ
 python experiments/run_experiments.py --group encodings --timeout 600
 
-# 9. Nhóm exact_solvers (So sánh tổng thể 6 công thức giải chính xác: SAT Order, SAT Pairwise, CP-SAT, CPLEX MIP, CPLEX CP, Gurobi)
+# So sánh sáu formulation: SAT Order, SAT Pairwise, CP-SAT,
+# CPLEX MIP, CPLEX CP Optimizer, và Gurobi
 python experiments/run_experiments.py --group exact_solvers --timeout 600
 
-# Chỉ định thư mục lưu kết quả tùy chỉnh qua --output-dir
-python experiments/run_experiments.py --group solvers_small --output-dir results
-
-# Chạy kèm cờ resume (mặc định chỉ bỏ qua các record đã chạy trong runs.jsonl)
-python experiments/run_experiments.py --group all --resume
-
-# Chạy lại các bài toán lỗi/tạm dừng (TIMEOUT, MEMOUT, ERROR, INTERRUPTED, UNKNOWN,
-# hoặc FEASIBLE không có incumbent hợp lệ) từ runs.jsonl
-python experiments/run_experiments.py --group all --resume --retry-failed
-
-# Ép buộc resume khi git commit hash hiện tại khác với commit trong runs.jsonl
-python experiments/run_experiments.py --group all --resume --force-resume
-
-# Ghi thông tin commit, timeout, và config vào metadata
-python experiments/run_experiments.py --group all --record-metadata
+# So sánh năm SAT solvers trên bốn đồ thị trung bình (N=60, 80)
+python experiments/run_experiments.py --group solvers_medium --timeout 600
 ```
 
-> [!TIP]
-> **Cơ chế `--resume`, `--force-resume`, và `--retry-failed`:**
-> - Mỗi bản ghi trong `runs.jsonl` được tự động gắn git commit hash và cờ repo dirty (`git_commit`, `git_dirty`).
-> - `--resume`: Kiểm tra commit hash của các kết quả cũ. Nếu commit hash khác với commit hiện tại của repo, runner sẽ từ chối chạy để tránh trộn lẫn kết quả của các phiên bản mã nguồn khác nhau.
-> - `--force-resume`: Cho phép bỏ qua kiểm tra commit hash và tiếp tục chạy resume.
-> - `--retry-failed`: Mặc định `--resume` bỏ qua mọi record đã có, kể cả timeout/interrupted. Khi thêm `--retry-failed`, runner giữ lại kết quả `OPTIMAL` hợp lệ, `INFEASIBLE`, `SIZE_LIMIT`, `UNAVAILABLE`, `LICENSE_ERROR` và `FEASIBLE` có incumbent hợp lệ; runner chạy lại `TIMEOUT`, `MEMOUT`, `ERROR`, `INTERRUPTED`, `UNKNOWN`, `FEASIBLE` thiếu incumbent hợp lệ và record có `validation_error`.
+### Kiểm soát resume và metadata
 
-> [!NOTE]
-> `results/` là thư mục kết quả duy nhất. Không tạo các biến thể `results_v2/`, `results/pilot/` hoặc `results/final/`; các lần chạy tiếp theo dùng cùng `results/runs.jsonl` để resume/append.
-> Sử dụng cờ `--record-metadata` khi chạy runner để tự động lưu git commit hash, timeout, và đường dẫn cấu hình vào `results/env.json` cũng như đầu file `results/runs.jsonl`.
+```bash
+# Xem trước kế hoạch
+python experiments/run_experiments.py --dry-run
 
----
+# Ghi commit, timeout và cấu hình vào metadata
+python experiments/run_experiments.py --group exact_solvers --record-metadata
+
+# Tiếp tục từ các record tương thích trong results/runs.jsonl
+python experiments/run_experiments.py --group all --resume
+
+# Chỉ chạy lại record thất bại hoặc chưa có nghiệm incumbent hợp lệ
+python experiments/run_experiments.py --group all --resume --retry-failed
+```
+
+Mỗi record ghi lại trạng thái solver riêng biệt. `OPTIMAL` nghĩa là đã chứng minh tối ưu; `FEASIBLE` chỉ có nghiệm khả thi; `TIMEOUT` là hết thời gian; `SIZE_LIMIT` là giới hạn kích thước của solver; `UNAVAILABLE` là solver không khả dụng. Không chuyển các trạng thái này thành cùng một loại kết quả.
 
 ## 6. Sinh bảng biểu và đồ thị (Analysis & Visualization)
 
