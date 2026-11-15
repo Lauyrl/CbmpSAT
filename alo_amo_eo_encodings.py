@@ -1,5 +1,52 @@
 import math
 from typing import List, Tuple, Sequence, Optional
+from math import ceil, sqrt
+
+
+# ================= PRODUCT
+def exactly_one_product(X, a_base):
+    """
+    Product encoding for EO
+    """
+    clauses = []
+    n = len(X)
+
+    if n == 0: return [[]], a_base
+
+    if n == 1: return [[X[0]]], a_base
+
+    p = ceil(sqrt(n))  # num rows
+    q = ceil(n / p)    # num columns
+
+    row_vars = list(range(a_base, a_base + p))
+    a_base += p
+
+    col_vars = list(range(a_base, a_base + q))
+    a_base += q
+
+    # Each variable implies its row and column
+    for idx, x in enumerate(X):
+        row = idx // q
+        col = idx % q
+
+        clauses.append([-x, row_vars[row]])
+        clauses.append([-x, col_vars[col]])
+
+    # Pairwise AMO on row variables
+    for i in range(p):
+        for j in range(i + 1, p):
+            clauses.append([-row_vars[i], -row_vars[j]])
+
+    # Pairwise AMO on col variables
+    for i in range(q):
+        for j in range(i + 1, q):
+            clauses.append([-col_vars[i], -col_vars[j]])
+
+    # ALO on original variables
+    clauses.append(list(X))
+
+    return clauses, a_base
+
 
 # ============================================================================
 # ALO (At-Least-One)
