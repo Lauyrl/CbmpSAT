@@ -69,7 +69,7 @@ for table in required_tables:
         raise SystemExit(f"[BLOCKER] Required current-snapshot table is missing or empty: {table}")
     print(f"[OK] Current result table present: {table}")
 
-# Regenerate the three deterministic CSVs from the tracked raw snapshot in a
+# Regenerate the four deterministic CSVs from the tracked raw snapshot in a
 # temporary directory and require an exact match with committed artifacts.
 import subprocess
 import tempfile
