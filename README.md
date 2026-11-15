@@ -180,7 +180,7 @@ python experiments/run_experiments.py --group all --record-metadata
 > - `--retry-failed`: Mặc định `--resume` bỏ qua mọi record đã có, kể cả timeout/interrupted. Khi thêm `--retry-failed`, runner giữ lại kết quả `OPTIMAL` hợp lệ, `INFEASIBLE`, `SIZE_LIMIT`, `UNAVAILABLE`, `LICENSE_ERROR` và `FEASIBLE` có incumbent hợp lệ; runner chạy lại `TIMEOUT`, `MEMOUT`, `ERROR`, `INTERRUPTED`, `UNKNOWN`, `FEASIBLE` thiếu incumbent hợp lệ và record có `validation_error`.
 
 > [!NOTE]
-`results/` là thư mục kết quả duy nhất; các lần chạy tiếp theo dùng cùng `results/runs.jsonl` để resume/append.
+> `results/` là thư mục kết quả duy nhất. Không tạo các biến thể `results_v2/`, `results/pilot/` hoặc `results/final/`; các lần chạy tiếp theo dùng cùng `results/runs.jsonl` để resume/append.
 > Sử dụng cờ `--record-metadata` khi chạy runner để tự động lưu git commit hash, timeout, và đường dẫn cấu hình vào `results/env.json` cũng như đầu file `results/runs.jsonl`.
 
 ---
@@ -218,21 +218,27 @@ python analysis/make_plots.py results/runs.jsonl --output-dir results/figures
 
 ## 7. Hoàn thiện kết quả (Finalize)
 
-**Snapshot duy nhất hiện được lưu:** `results/runs.jsonl` chứa 44 records: 24 OPTIMAL, 12 TIMEOUT, 4 UNAVAILABLE, 3 SIZE_LIMIT và 1 FEASIBLE. Các records thuộc những nhóm `encodings`, `exact_solvers` và `solvers_medium`. Metadata tương ứng nằm tại `results/env.json`.
+**Trạng thái dữ liệu tại branch hiện tại (15/11/2026):** `results/` đang có 44 records (24 OPTIMAL, 12 TIMEOUT, 4 UNAVAILABLE, 3 SIZE_LIMIT, 1 FEASIBLE), thuộc các nhóm `encodings`, `exact_solvers` và `solvers_medium`. Metadata ghi nhận commit nguồn `41271c4119a306ace4b42e734093ea773ab30bc2-dirty`; do đó đây là dữ liệu từ working tree dirty, chưa đủ điều kiện gắn nhãn reproducible/final. Không chuyển nguyên trạng thành `results/final/`. Cần tái chạy hoặc xác minh snapshot mã nguồn dirty trước khi phát hành official archive.
 
-Metadata ghi nhận nguồn `41271c4119a306ace4b42e734093ea773ab30bc2-dirty`. Vì vậy đây là snapshot kết quả mới nhất được bảo tồn, nhưng không đủ cơ sở để tuyên bố benchmark được chạy từ working tree sạch và có thể tái lập hoàn toàn.
-
-Để cập nhật snapshot trên cùng thư mục (không tạo version khác):
-
-```bash
-python experiments/run_experiments.py --group all --record-metadata --output-dir results
-python analysis/make_tables.py results/runs.jsonl --output-dir results/tables
-python analysis/make_plots.py results/runs.jsonl --output-dir results/figures
-```
-
-Trước khi chạy benchmark phục vụ báo cáo cuối, hãy commit mã nguồn sạch và xác nhận metadata mới có `git_dirty=false`. Không tạo các thư mục `pilot/`, `final/` hoặc `results_v2/`.
+Chỉ phát hành official archive sau khi tất cả điều kiện sau được thỏa mãn:
+1. Chốt và commit mã nguồn sạch; không chạy benchmark khi working tree dirty.
+2. Chạy các nhóm còn thiếu hoặc retry các trạng thái tạm thời theo đúng cấu hình, trên cùng commit sạch.
+3. Lưu metadata mới, trong đó `git_commit` phải trùng HEAD và `git_dirty` phải là `false`.
+4. Kiểm tra từng JSONL record, independent solution validation, matched pairs, timeout/license statuses và đối chiếu bảng/hình.
+5. Chỉ sau khi các kiểm tra trên đạt, sao chép raw runs và metadata vào `results/final/`, sinh lại tables/figures từ đúng archive, rồi commit:
+   ```bash
+   mkdir -p results/final
+   cp results/runs.jsonl results/final/runs.jsonl
+   cp results/env.json results/final/env.json
+   python analysis/make_tables.py results/final/runs.jsonl --output-dir results/final/tables
+   python analysis/make_plots.py results/final/runs.jsonl --output-dir results/final/figures
+   git add results/final
+   git commit -m "data: archive validated final CBMP experiments"
+   ```
+Snapshot 44 record hiện tại vẫn mang `git_dirty=true`; cần chạy lại sau khi chốt commit sạch trước khi báo cáo tính tái lập.
 
 ---
+
 ## 8. Chạy kiểm thử tự động (Running Tests)
 
 Toàn bộ các thuật toán và mô hình được kiểm thử tự động bằng `pytest`:
