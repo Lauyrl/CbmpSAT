@@ -289,12 +289,10 @@ Kết quả biên dịch là `report/report.pdf`. Số trang phụ thuộc nội
 
 ---
 
-## 10. Quy ước dữ liệu lịch sử trong docs/\n\nCác thư mục docs/data/, docs/phaseA/, docs/phaseA2/, docs/phaseB/, docs/phaseC/, docs/phaseD/, docs/pilot/ và docs/calibration/ được giữ nguyên đường dẫn để không phá vỡ liên kết/tài liệu cũ. Chúng là hồ sơ lịch sử theo giai đoạn, không phải output mặc định của pipeline. Mỗi bảng lịch sử chỉ được dùng làm bằng chứng định lượng khi đã xác minh được nguồn dữ liệu, cấu hình và commit tạo ra nó.\n\n## 11. Ghi chú về tài liệu audit và mã nguồn cũ
+## 10. Tài liệu lưu trữ và mã nguồn legacy
 
-- `reports/code_quality_audit.md` là báo cáo audit kỹ thuật được giữ lại làm tài liệu tham khảo lịch sử. Các ghi chú audit ngắn từ `fix/audit4` đã được loại bỏ vì chỉ lặp lại trạng thái branch/HEAD/test cũ.
-- `results/runs.jsonl` và `results/env.json` là cặp raw result/metadata duy nhất của snapshot hiện hành. Dữ liệu lịch sử được giữ riêng trong docs/; không dùng làm input mặc định cho pipeline hiện hành.
+- `docs/README.md` mô tả vai trò của dữ liệu lịch sử, các phase và quy tắc provenance.
+- `reports/code_quality_audit.md` là báo cáo audit kỹ thuật được giữ lại làm tài liệu tham khảo; cần đọc kèm commit/HEAD ghi trong báo cáo.
+- `legacy/bmp.py` là triển khai CBMP đời đầu, được giữ để tham chiếu lịch sử và không thuộc pipeline hiện hành.
 
-## 12. Ghi chú mã nguồn cũ (Legacy)
-
-- `legacy/bmp.py`: Là phiên bản triển khai CBMP đời đầu, không còn module nào trong dự án phụ thuộc hoặc import file này. Đã được chuyển vào thư mục `legacy/` để bảo tồn lịch sử phát triển.
-
+**Quy tắc nguồn dữ liệu:** `results/runs.jsonl` cùng `results/env.json` là snapshot hiện hành duy nhất. Dữ liệu dưới `docs/` chỉ là archive; không tự động nối, ghi đè hoặc dùng làm đầu vào mặc định cho pipeline hiện hành.

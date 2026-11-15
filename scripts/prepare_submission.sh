@@ -9,7 +9,7 @@ echo "== CBMP submission preflight =="
 echo "Repository: $ROOT"
 echo "Branch:     $BRANCH"
 echo "Commit:     $COMMIT"
-PYTHON="\${PYTHON:-python3}"
+PYTHON="${PYTHON:-python3}"
 "$PYTHON" - <<'PY'
 import sys
 print(f"Python: {sys.version.split()[0]}")
