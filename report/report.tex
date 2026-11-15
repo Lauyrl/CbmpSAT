@@ -671,8 +671,8 @@ IBM Corp., ``IBM ILOG CPLEX Optimization Studio CPLEX User's Manual,'' version 2
 \section*{Data Availability}
 The source code, benchmark datasets, experiment configurations, automated tests,
 analysis scripts, and report source are available on the repository's
-\texttt{final} branch:
-\url{https://github.com/datnk0116/CBMP/tree/final}.
+\texttt{final-2} branch:
+\url{https://github.com/datnk0116/CBMP/tree/final-2}.
 
 The current raw experiment snapshot is stored only at
 \texttt{results/runs.jsonl}, with environment metadata at
@@ -685,12 +685,12 @@ The metadata records source commit
 the exact source tree used for these runs is not identified by a clean commit.
 These records are exploratory evidence, not a fully reproducible final benchmark.
 
-Historical raw data and phase-specific tables are retained under
-\texttt{docs/data/}, \texttt{docs/phaseA/}, \texttt{docs/phaseA2/},
-\texttt{docs/phaseB/}, \texttt{docs/phaseC/}, \texttt{docs/phaseD/},
-and \texttt{docs/pilot/}. They are archival research records, not the default
-input to the current experiment pipeline. The report's historical tables are
-not claimed to have been regenerated from the 44-record snapshot.
+Historical raw data are retained under \texttt{docs/data/}; selected phase-specific
+tables are retained under \texttt{docs/phaseC/} and \texttt{docs/phaseD/}.
+These are archival research records, not the default input to the current
+experiment pipeline. Earlier Phase A/A2/B, pilot and calibration artifacts
+were removed from this branch and are not available here. The report's
+historical tables are not claimed to have been regenerated from the 44-record snapshot.
 
 Derived tables and figures for the current snapshot are stored under
 \texttt{results/tables/} and \texttt{results/figures/}. The selected figures
