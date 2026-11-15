@@ -7,10 +7,9 @@ ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" || {
 }
 cd "$ROOT"
 
-EXPECTED_BRANCH="fix/assignment2-compliance"
 BRANCH="$(git branch --show-current)"
-if [[ "$BRANCH" != "$EXPECTED_BRANCH" ]]; then
-  echo "[ERROR] Expected branch '$EXPECTED_BRANCH', got '$BRANCH'."
+if [[ -z "$BRANCH" ]]; then
+  echo "[ERROR] Detached HEAD; switch to a working branch before submission checks."
   exit 2
 fi
 

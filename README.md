@@ -30,7 +30,7 @@ Các phiên bản quan sát được trong môi trường chạy gần nhất (k
 - `pytest==9.2.0`, `pyyaml==6.0.3`
 - `pandas==2.3.3`, `matplotlib==3.11.2`, `networkx==3.7`, `cnsplots==0.8.0`
 
-Lưu ý: `results/pilot/env.json` là metadata của một lần chạy cũ (Python 3.14.7 / NumPy 2.5.4), không đại diện cho môi trường gần nhất và không tương thích với giới hạn NumPy hiện tại trong `requirements.txt`. Mỗi lần chạy mới cần giữ kèm `env.json` riêng.
+Lưu ý: `results/env.json` lưu metadata của snapshot kết quả mới nhất. Không trộn kết quả từ các commit hoặc working tree khác nhau.
 
 ---
 
@@ -63,8 +63,8 @@ CBMP/
 │   ├── calibrate.py        # Thử nghiệm hiệu chuẩn thời gian và tài nguyên
 │   └── make_subgraphs.py   # Tạo các đồ thị con cảm ứng liên thông
 ├── tests/                  # Bộ test tự động (brute force, baselines, mocked CP/Gurobi, encodings)
-├── results/                # Kết quả và archive thực nghiệm đã chọn lọc
-├── results_v2/             # Kết quả chạy tạm; mặc định bị loại khỏi Git
+├── results/                # Nguồn kết quả thực nghiệm duy nhất (runs.jsonl, env.json, tables/, figures/)
+├── results/             # Kết quả chạy tạm; mặc định bị loại khỏi Git
 ├── report/                 # Báo cáo khoa học LaTeX & hình ảnh
 ├── requirements.txt
 ├── pytest.ini
@@ -118,7 +118,7 @@ Nếu thiếu file (ví dụ chưa có `14_bus.mtx`), script sẽ báo lỗi rõ
 
 ## 5. Chạy thực nghiệm (Running Experiments)
 
-File cấu hình tại `experiments/configs.yaml` định nghĩa nhiều nhóm thực nghiệm (SAT solver comparison, exact-solver comparison, encoding comparison, ablation và các nhóm mở rộng). Runner `experiments/run_experiments.py` tự động khử trùng lặp các tác vụ dùng chung cấu hình. Mặc định toàn bộ kết quả được ghi vào thư mục `results_v2/` (được cấu hình trong `.gitignore`, không tự động commit). Bạn có thể tùy chỉnh thư mục xuất qua cờ `--output-dir`.
+File cấu hình tại `experiments/configs.yaml` định nghĩa nhiều nhóm thực nghiệm (SAT solver comparison, exact-solver comparison, encoding comparison, ablation và các nhóm mở rộng). Runner `experiments/run_experiments.py` tự động khử trùng lặp các tác vụ dùng chung cấu hình. Mặc định toàn bộ kết quả được ghi vào thư mục `results/`, là nguồn dữ liệu duy nhất của repository. Bạn có thể tùy chỉnh thư mục xuất qua cờ `--output-dir` khi thực sự cần thử nghiệm riêng.
 
 ### Xem trước kế hoạch chạy (Dry Run)
 ```bash
@@ -156,7 +156,7 @@ python experiments/run_experiments.py --group encodings --timeout 600
 python experiments/run_experiments.py --group exact_solvers --timeout 600
 
 # Chỉ định thư mục lưu kết quả tùy chỉnh qua --output-dir
-python experiments/run_experiments.py --group solvers_small --output-dir results_v2
+python experiments/run_experiments.py --group solvers_small --output-dir results
 
 # Chạy kèm cờ resume (mặc định chỉ bỏ qua các record đã chạy trong runs.jsonl)
 python experiments/run_experiments.py --group all --resume
@@ -180,25 +180,25 @@ python experiments/run_experiments.py --group all --record-metadata
 > - `--retry-failed`: Mặc định `--resume` bỏ qua mọi record đã có, kể cả timeout/interrupted. Khi thêm `--retry-failed`, runner giữ lại kết quả `OPTIMAL` hợp lệ, `INFEASIBLE`, `SIZE_LIMIT`, `UNAVAILABLE`, `LICENSE_ERROR` và `FEASIBLE` có incumbent hợp lệ; runner chạy lại `TIMEOUT`, `MEMOUT`, `ERROR`, `INTERRUPTED`, `UNKNOWN`, `FEASIBLE` thiếu incumbent hợp lệ và record có `validation_error`.
 
 > [!NOTE]
-> Mặc định runner ghi dữ liệu vào `results_v2/` và không can thiệp vào `results/`. Thư mục `results_v2/` là vùng làm việc tạm, không phải official archive. Batch 44 records hiện tại đã được commit để bảo toàn bằng chứng kiểm tra; `.gitignore` chỉ ngăn các output mới chưa được track, không tự bỏ theo dõi những file đã commit.
-> Sử dụng cờ `--record-metadata` khi chạy runner để tự động lưu git commit hash, timeout, và đường dẫn cấu hình vào `results_v2/env.json` cũng như đầu file `results_v2/runs.jsonl`.
+> `results/` là thư mục kết quả duy nhất. Không tạo các biến thể `results_v2/`, `results/pilot/` hoặc `results/final/`; các lần chạy tiếp theo dùng cùng `results/runs.jsonl` để resume/append.
+> Sử dụng cờ `--record-metadata` khi chạy runner để tự động lưu git commit hash, timeout, và đường dẫn cấu hình vào `results/env.json` cũng như đầu file `results/runs.jsonl`.
 
 ---
 
 ## 6. Sinh bảng biểu và đồ thị (Analysis & Visualization)
 
-Các script phân tích mặc định đọc từ `results_v2/runs.jsonl` và xuất ra `results_v2/tables/` cũng như `results_v2/figures/`. Có thể tùy chỉnh thư mục đầu ra thông qua cờ `--output-dir`:
+Các script phân tích mặc định đọc từ `results/runs.jsonl` và xuất ra `results/tables/` cũng như `results/figures/`. Có thể tùy chỉnh thư mục đầu ra thông qua cờ `--output-dir`:
 
 ```bash
-# Sinh các bảng tổng hợp LaTeX (.tex) và CSV (.csv) vào results_v2/tables/
-python analysis/make_tables.py results_v2/runs.jsonl
+# Sinh các bảng tổng hợp LaTeX (.tex) và CSV (.csv) vào results/tables/
+python analysis/make_tables.py results/runs.jsonl
 # Hoặc chỉ định rõ thư mục xuất:
-python analysis/make_tables.py results_v2/runs.jsonl --output-dir results_v2/tables
+python analysis/make_tables.py results/runs.jsonl --output-dir results/tables
 
-# Sinh các biểu đồ cactus, scatter, ablation vào results_v2/figures/
-python analysis/make_plots.py results_v2/runs.jsonl
+# Sinh các biểu đồ cactus, scatter, ablation vào results/figures/
+python analysis/make_plots.py results/runs.jsonl
 # Hoặc chỉ định rõ thư mục xuất:
-python analysis/make_plots.py results_v2/runs.jsonl --output-dir results_v2/figures
+python analysis/make_plots.py results/runs.jsonl --output-dir results/figures
 ```
 
 - Bảng `table_ablation_small` & `table_ablation_medium`: Đánh giá tác động của phá đối xứng quay, đối xứng gương và heuristic khởi tạo (tách riêng đồ thị nhỏ và trung bình).
@@ -218,7 +218,7 @@ python analysis/make_plots.py results_v2/runs.jsonl --output-dir results_v2/figu
 
 ## 7. Hoàn thiện kết quả (Finalize)
 
-**Trạng thái dữ liệu tại branch hiện tại (15/11/2026):** `results_v2/` đang có 44 records (24 OPTIMAL, 12 TIMEOUT, 4 UNAVAILABLE, 3 SIZE_LIMIT, 1 FEASIBLE), thuộc các nhóm `encodings`, `exact_solvers` và `solvers_medium`. Metadata ghi nhận commit nguồn `41271c4119a306ace4b42e734093ea773ab30bc2-dirty`; do đó đây là dữ liệu từ working tree dirty, chưa đủ điều kiện gắn nhãn reproducible/final. Không chuyển nguyên trạng thành `results/final/`. Cần tái chạy hoặc xác minh snapshot mã nguồn dirty trước khi phát hành official archive.
+**Trạng thái dữ liệu tại branch hiện tại (15/11/2026):** `results/` đang có 44 records (24 OPTIMAL, 12 TIMEOUT, 4 UNAVAILABLE, 3 SIZE_LIMIT, 1 FEASIBLE), thuộc các nhóm `encodings`, `exact_solvers` và `solvers_medium`. Metadata ghi nhận commit nguồn `41271c4119a306ace4b42e734093ea773ab30bc2-dirty`; do đó đây là dữ liệu từ working tree dirty, chưa đủ điều kiện gắn nhãn reproducible/final. Không chuyển nguyên trạng thành `results/final/`. Cần tái chạy hoặc xác minh snapshot mã nguồn dirty trước khi phát hành official archive.
 
 Chỉ phát hành official archive sau khi tất cả điều kiện sau được thỏa mãn:
 1. Chốt và commit mã nguồn sạch; không chạy benchmark khi working tree dirty.
@@ -228,14 +228,14 @@ Chỉ phát hành official archive sau khi tất cả điều kiện sau đượ
 5. Chỉ sau khi các kiểm tra trên đạt, sao chép raw runs và metadata vào `results/final/`, sinh lại tables/figures từ đúng archive, rồi commit:
    ```bash
    mkdir -p results/final
-   cp results_v2/runs.jsonl results/final/runs.jsonl
-   cp results_v2/env.json results/final/env.json
+   cp results/runs.jsonl results/final/runs.jsonl
+   cp results/env.json results/final/env.json
    python analysis/make_tables.py results/final/runs.jsonl --output-dir results/final/tables
    python analysis/make_plots.py results/final/runs.jsonl --output-dir results/final/figures
    git add results/final
    git commit -m "data: archive validated final CBMP experiments"
    ```
-Không dùng các lệnh trên với batch hiện tại vì metadata của nó ghi `git_dirty=true`.
+Snapshot 44 record hiện tại vẫn mang `git_dirty=true`; cần chạy lại sau khi chốt commit sạch trước khi báo cáo tính tái lập.
 
 ---
 
@@ -279,7 +279,7 @@ Kết quả biên dịch là `report/report.pdf`. Số trang phụ thuộc nội
 ## 10. Ghi chú về tài liệu audit và mã nguồn cũ
 
 - `reports/code_quality_audit.md` là báo cáo audit kỹ thuật được giữ lại làm tài liệu tham khảo lịch sử. Các ghi chú audit ngắn từ `fix/audit4` đã được loại bỏ vì chỉ lặp lại trạng thái branch/HEAD/test cũ.
-- Backup JSONL cũ trong `results_v2/` không còn được giữ cạnh file dữ liệu chính; lịch sử đầy đủ vẫn có trong Git commit trước khi dọn. File `runs.jsonl` hiện tại và `env.json` được giữ nguyên.
+- `results/runs.jsonl` và `results/env.json` là hai file raw result/metadata duy nhất. Các file kết quả cũ ở thư mục con đã được loại bỏ; lịch sử Git trước khi dọn vẫn được bảo toàn.
 
 ## 11. Ghi chú mã nguồn cũ (Legacy)
 

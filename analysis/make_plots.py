@@ -45,7 +45,7 @@ def setup_matplotlib():
     plt.rcParams["figure.titlesize"] = 14
     plt.rcParams["figure.autolayout"] = True
 
-def save_fig(fig, base_filename, output_dirs=("results_v2/figures",)):
+def save_fig(fig, base_filename, output_dirs=("results/figures",)):
     if isinstance(output_dirs, str):
         output_dirs = (output_dirs,)
     for out_dir in output_dirs:
@@ -57,7 +57,7 @@ def save_fig(fig, base_filename, output_dirs=("results_v2/figures",)):
     print(f"Figure saved: {base_filename}.png and {base_filename}.pdf in {output_dirs[0]}/")
     plt.close(fig)
 
-def plot_encoding_comparison(records, output_dirs=("results_v2/figures",)):
+def plot_encoding_comparison(records, output_dirs=("results/figures",)):
     """
     Draw CNSPlots boxplots only when both encodings have validated OPTIMAL samples.
 
@@ -182,7 +182,7 @@ def get_ablation_var_name(cfg):
         return "all (SB+Heur)"
     return "other"
 
-def plot_cactus(records, group_name, category_key, title, base_filename, output_dirs=("results_v2/figures",)):
+def plot_cactus(records, group_name, category_key, title, base_filename, output_dirs=("results/figures",)):
     """
     Plots cumulative solved instances over solve time (Cactus plot).
     """
@@ -282,7 +282,7 @@ def extract_scatter_pairs(records, group_name="ablation_small"):
 
     return pairs
 
-def plot_scatter_sb_vs_nosb(records, group_name="ablation_small", base_filename="scatter_sb_vs_nosb_small", title="Solve Time: No Symmetry Breaking vs With Symmetry Breaking (Small Graphs)", output_dirs=("results_v2/figures",)):
+def plot_scatter_sb_vs_nosb(records, group_name="ablation_small", base_filename="scatter_sb_vs_nosb_small", title="Solve Time: No Symmetry Breaking vs With Symmetry Breaking (Small Graphs)", output_dirs=("results/figures",)):
     """
     Log-log scatter plot comparing solve time with vs without symmetry breaking.
     """
@@ -320,7 +320,7 @@ def plot_scatter_sb_vs_nosb(records, group_name="ablation_small", base_filename=
 
     save_fig(fig, base_filename, output_dirs=output_dirs)
 
-def plot_ablation_median_time(records, group_name="ablation_small", base_filename="ablation_median_time_small", title="Ablation Study: Median Solve Time Across Configurations (Small Graphs)", output_dirs=("results_v2/figures",)):
+def plot_ablation_median_time(records, group_name="ablation_small", base_filename="ablation_median_time_small", title="Ablation Study: Median Solve Time Across Configurations (Small Graphs)", output_dirs=("results/figures",)):
     """
     Bar chart showing median solve time per configuration.
     """
@@ -369,7 +369,7 @@ def plot_ablation_median_time(records, group_name="ablation_small", base_filenam
 
     save_fig(fig, base_filename, output_dirs=output_dirs)
 
-def plot_ablation_iterations_and_unsat(records, group_name="ablation_small", base_filename="ablation_iterations_and_unsat_small", title="Impact of Symmetry Breaking on SAT Iterations and UNSAT Proof Time (Small Graphs)", output_dirs=("results_v2/figures",)):
+def plot_ablation_iterations_and_unsat(records, group_name="ablation_small", base_filename="ablation_iterations_and_unsat_small", title="Impact of Symmetry Breaking on SAT Iterations and UNSAT Proof Time (Small Graphs)", output_dirs=("results/figures",)):
     """
     Plots number of SAT iterations and time spent on the final UNSAT iteration.
     """
@@ -439,7 +439,7 @@ def plot_ablation_iterations_and_unsat(records, group_name="ablation_small", bas
 
     save_fig(fig, base_filename, output_dirs=output_dirs)
 
-def plot_ablation_family_boxplots(records, base_filename="boxplot_ablation_family", output_dirs=("results_v2/figures",)):
+def plot_ablation_family_boxplots(records, base_filename="boxplot_ablation_family", output_dirs=("results/figures",)):
     """
     Boxplot (log scale) of time ratio relative to 'none' across vertex relabeling families.
     Separate panels for N=40 and N=50.
@@ -556,9 +556,9 @@ def main():
     if not output_dir:
         if input_file and (os.path.isfile(input_file) or os.path.isdir(input_file)):
             run_dir = os.path.dirname(input_file) if os.path.isfile(input_file) else input_file
-            run_dir = run_dir or "results_v2"
+            run_dir = run_dir or "results"
         else:
-            run_dir = "results_v2"
+            run_dir = "results"
         output_dir = os.path.join(run_dir, "figures")
 
     records = load_records(input_file)

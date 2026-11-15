@@ -1193,12 +1193,12 @@ def load_records(jsonl_source=None, strict=False):
     elif jsonl_source is not None and os.path.isdir(jsonl_source):
         preferred = os.path.join(jsonl_source, "runs.jsonl")
         files = [preferred] if os.path.exists(preferred) else sorted(glob.glob(os.path.join(jsonl_source, "*.jsonl")))
-    elif os.path.exists("results_v2/runs.jsonl"):
-        files = ["results_v2/runs.jsonl"]
+    elif os.path.exists("results/runs.jsonl"):
+        files = ["results/runs.jsonl"]
     elif os.path.exists("results/runs.jsonl"):
         files = ["results/runs.jsonl"]
     else:
-        files = sorted(glob.glob("results_v2/*.jsonl")) or sorted(glob.glob("results/*.jsonl"))
+        files = sorted(glob.glob("results/*.jsonl")) or sorted(glob.glob("results/*.jsonl"))
 
     if not files:
         logger.warning("load_records: no JSONL files found.")
@@ -1666,7 +1666,7 @@ def compute_summary_stats(df_raw, column_names, baseline_col=None, timeout=600.0
 
     return solved_counts, sl_counts, par2_scores, speedups
 
-def export_table(df_display, summary_rows, title, base_filename, output_dirs=("results_v2/tables",), note=None, df_raw=None):
+def export_table(df_display, summary_rows, title, base_filename, output_dirs=("results/tables",), note=None, df_raw=None):
     """Saves formatted table as both CSV and LaTeX, and optionally exports machine-readable raw metrics."""
     if isinstance(output_dirs, str):
         output_dirs = (output_dirs,)
@@ -1765,7 +1765,7 @@ def export_table(df_display, summary_rows, title, base_filename, output_dirs=("r
     print(f"Table saved: {base_filename}.csv and {base_filename}.tex in {output_dirs[0]}/")
     return full_df
 
-def make_table_ablation(records, group_name="ablation_small", base_filename="table_ablation_small", title="Ablation Study: Small Graphs", output_dirs=("results_v2/tables",)):
+def make_table_ablation(records, group_name="ablation_small", base_filename="table_ablation_small", title="Ablation Study: Small Graphs", output_dirs=("results/tables",)):
     """Generate Ablation study table for a specific ablation group."""
     ablation_recs = [
         r for r in records
@@ -1915,7 +1915,7 @@ def make_table_ablation(records, group_name="ablation_small", base_filename="tab
     export_table(df_display, summary, title, base_filename, output_dirs=output_dirs, note=note, df_raw=df_raw)
     return df_display, summary, df_raw
 
-def make_table_solvers(records, group_name="solvers_small", base_filename="table_solvers_small", title="SAT Solver Performance Comparison (Small Graphs)", output_dirs=("results_v2/tables",)):
+def make_table_solvers(records, group_name="solvers_small", base_filename="table_solvers_small", title="SAT Solver Performance Comparison (Small Graphs)", output_dirs=("results/tables",)):
     """Generate Solvers comparison table for a specific solvers group."""
     solver_recs = [
         r for r in records
@@ -2155,7 +2155,7 @@ def _deduplicate_encoding_runs(records):
 def make_table_encoding_comparison(
     records,
     base_filename="table_encoding_comparison",
-    output_dirs=("results_v2/tables",),
+    output_dirs=("results/tables",),
 ):
     """
     Export status-aware per-configuration results and repetition-paired comparisons.
@@ -2406,7 +2406,7 @@ def make_table_encoding_comparison(
     )
     return detail_df, pair_df
 
-def make_table_methods(records, output_dirs=("results_v2/tables",)):
+def make_table_methods(records, output_dirs=("results/tables",)):
     """Generate Methods comparison table (SAT vs CP-SAT vs CPLEX)."""
     method_group_names = {"methods", "exact_solvers", "cplex_cp", "gurobi", "encodings"}
     method_recs = [
@@ -2693,7 +2693,7 @@ def make_table_methods(records, output_dirs=("results_v2/tables",)):
     )
     return df_display, summary, df_raw
 
-def make_table_ablation_family(records, base_filename="table_ablation_family", output_dirs=("results_v2/tables",)):
+def make_table_ablation_family(records, base_filename="table_ablation_family", output_dirs=("results/tables",)):
     """
     Generate table_ablation_family.csv:
     Each row: (comparison_group, variant): median time ratio, IQR (25-75%), min-max, faster_pairs / total_pairs.
@@ -2923,7 +2923,7 @@ def make_table_ablation_family(records, base_filename="table_ablation_family", o
 
     return df
 
-def make_table_ablation_phases(records, base_filename="table_ablation_phases", output_dirs=("results_v2/tables",)):
+def make_table_ablation_phases(records, base_filename="table_ablation_phases", output_dirs=("results/tables",)):
     """
     Generate table_ablation_phases.csv:
     Median last_iter_time, median prev_iters_time, ratio of last_iter/solve_time by variant, split by N (40 and 50).
@@ -3059,7 +3059,7 @@ def get_lb_degree(dataset_name):
     except Exception:
         return 0
 
-def make_table_per_dataset(records, base_filename="table_per_dataset", output_dirs=("results_v2/tables",)):
+def make_table_per_dataset(records, base_filename="table_per_dataset", output_dirs=("results/tables",)):
     """Generate summary table for per_dataset group (cadical195 on all datasets).
     SAT does not produce a solver lower bound (lb_solver is '-').
     ub_minus_lb is best_ub - lb, representing a weak bound gap rather than distance to optimality.
@@ -3139,7 +3139,7 @@ def make_table_per_dataset(records, base_filename="table_per_dataset", output_di
     print(f"Table saved: {base_filename}.csv in {output_dirs[0]}/")
     return df
 
-def make_table_methods_family(records, base_filename="table_methods_family", output_dirs=("results_v2/tables",)):
+def make_table_methods_family(records, base_filename="table_methods_family", output_dirs=("results/tables",)):
     """
     Generate table_methods_family.csv:
     Compare cpsat vs sat_best across random vertex relabelings.
@@ -3229,7 +3229,7 @@ def make_table_methods_family(records, base_filename="table_methods_family", out
     print(f"Table saved: {base_filename}.csv in {output_dirs[0]}/")
     return df
 
-def make_table_methods_large(records, base_filename="table_methods_large", output_dirs=("results_v2/tables",)):
+def make_table_methods_large(records, base_filename="table_methods_large", output_dirs=("results/tables",)):
     """
     Generate table_methods_large.csv:
     Compare cpsat vs sat_best on large datasets (N >= 80, original labels).
@@ -3328,7 +3328,7 @@ def make_table_methods_large(records, base_filename="table_methods_large", outpu
     print(f"Table saved: {base_filename}.csv in {output_dirs[0]}/")
     return df
 
-def make_table_methods_large_seeds(records, base_filename="table_methods_large_seeds", output_dirs=("results_v2/tables",)):
+def make_table_methods_large_seeds(records, base_filename="table_methods_large_seeds", output_dirs=("results/tables",)):
     """
     Generate table_methods_large_seeds.csv:
     For datasets 494_bus_n80, 494_bus_n100, 662_bus_n80, 662_bus_n100:
@@ -3426,9 +3426,9 @@ def main():
     if not output_dir:
         if input_file and (os.path.isfile(input_file) or os.path.isdir(input_file)):
             run_dir = os.path.dirname(input_file) if os.path.isfile(input_file) else input_file
-            run_dir = run_dir or "results_v2"
+            run_dir = run_dir or "results"
         else:
-            run_dir = "results_v2"
+            run_dir = "results"
         output_dir = os.path.join(run_dir, "tables")
 
     records = load_records(input_file, strict=True)
