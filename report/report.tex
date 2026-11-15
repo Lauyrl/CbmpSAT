@@ -275,353 +275,119 @@ The RCM layout is evaluated via Eq.~(\ref{eq:cyclic_distance}) to obtain an init
 
 \section{Experiments}
 
-\paragraph{Evidence and reproducibility status.}
-The numerical tables and plots in this section are retained from the historical Phase C and Phase D archives, not generated from the current 44-record exploratory snapshot. The current snapshot is partial: it covers four encoding records, 24 exact-solver records on four small instances, and 20 medium SAT-solver records. It does not contain the complete repetition-level and cross-method raw observations needed to regenerate all historical ablation, solver-family, phase, and large-instance tables below. These historical derived values are therefore reported with their archived phase provenance and must not be represented as newly reproduced by the current snapshot. The table-to-source mapping and limitations are documented in \texttt{docs/EXPERIMENT\_PROVENANCE.md}. The exact-solver/encoding analysis requires records from the corresponding configured groups; the analysis script retains this group provenance when constructing matched comparisons.
-% =========================================================================
-
 \subsection{Experimental Setup}
 
-\paragraph{Hardware and Software Environment:}
-The current exploratory snapshot was executed on an Apple M4 platform featuring 10 CPU cores and 16.0~GB of unified memory, running macOS~15.7.4 (Darwin 24.6.0 arm64). Its recorded implementation environment is Python~3.12.16, PySAT (\texttt{python-sat} 1.9.dev21), Google OR-Tools~9.15.6755, IBM ILOG CPLEX~22.2.0.0 via \texttt{docplex}~2.32.264, SciPy~1.18.1, and NumPy~2.4.6. These values describe only the exploratory snapshot in \texttt{results/env.json}; they must not be generalized to the historical Phase C/Phase D experiments, which are separate archived evidence.
+The current evaluation uses eight benchmark instances from the repository's MatrixMarket dataset collection: \texttt{14\_bus} ($N=14$), \texttt{30\_bus} ($N=30$), and connected induced subgraphs \texttt{494\_bus\_n40}, \texttt{662\_bus\_n40}, \texttt{494\_bus\_n60}, \texttt{662\_bus\_n60}, \texttt{494\_bus\_n80}, and \texttt{662\_bus\_n80}. The full \texttt{494\_bus} ($N=494$) and \texttt{662\_bus} ($N=662$) matrices are included in the repository but have no records in the current result snapshot.
 
-\paragraph{Benchmark Datasets:}
-We evaluate 16 MatrixMarket graphs derived from standard IEEE power system test cases: \texttt{14\_bus} ($N=14$), \texttt{30\_bus} ($N=30$), \texttt{494\_bus} ($N=494$), and \texttt{662\_bus} ($N=662$), alongside their connected induced subgraphs with $N \in \{40, 50, 60, 80, 100, 150\}$. Graph properties are summarized in Table~\ref{tab:table_per_dataset}.
+The SAT experiments use PySAT with CaDiCaL~195. The Order and Pairwise distance encodings are run in \texttt{incremental} mode with the same symmetry-breaking constraints, RCM initial upper-bound heuristic, and Commander exactly-one strategy. The medium-instance solver comparison uses Order Encoding and the same SAT configuration for CaDiCaL~195, Glucose~4, MapleChrono, MiniSat~2.2, and Lingeling. The exact-solver comparison includes CP-SAT, CPLEX MIP, CPLEX CP Optimizer, and Gurobi. The time limit is 600 seconds.
 
-\paragraph{Solver Configurations and Baselines:}
-We evaluate five CDCL SAT engines available through PySAT: CaDiCaL~195, Glucose~4, MapleChrono, MiniSat~2.2, and Lingeling. As exact baselines, we evaluate:
-\begin{itemize}
-    \item \textbf{CP-SAT (OR-Tools)}: An exact Constraint Programming model with 1 worker thread using \texttt{AddModuloEquality} and \texttt{AddAllDifferent}.
-    \item \textbf{CPLEX (MIP)}: A Mixed-Integer Linear Programming model using binary indicators and linearized absolute/modular distance constraints. We note that the IBM Community Edition imposes a hard size limit (SL) of $\le 1000$ variables and constraints.
-\end{itemize}
-
-\paragraph{Experimental Protocol and Metrics:}
-The timeout for all runs is set to 600~seconds. To assess robustness against input vertex indexing, experiments on small and medium graphs are repeated across multiple pseudorandom vertex relabeling seeds (seeds $0\dots4$ for small graphs; 10 seeds for family ablation). Run times are reported as medians over relabeling seeds. For timeouts, we report Penalized Average Runtime with factor 2 (PAR2, assigning $2 \times 600\text{s} = 1200\text{s}$ to unsolved instances). Geometric mean speedups are computed exclusively over instances where the reference runtime is at least 0.1~seconds. Cross-validation across all solvers and seeds confirms $100\%$ consistency of reported optimal bandwidths.
-
-% --- TABLE 1: SOLVERS SMALL ---
-\begin{table}
-\centering
-\caption{SAT Solver Performance Comparison on Small Graphs ($N \le 40$)}
-\label{tab:table_solvers_small}
-\begin{tabular}{lrrrrrrr}
-\toprule
-Dataset & $N$ & $|E|$ & CaDiCaL 195 & Glucose 4 & MapleChrono & MiniSat 2.2 & Lingeling \\
-\midrule
-\texttt{14\_bus} & 14 & 20 & 0.0004 & 0.0003 & 0.0003 & 0.0002 & 0.0009 \\
-\texttt{30\_bus} & 30 & 39 & 0.0707 & 0.0350 & 0.7853 & 0.0377 & 0.2161 \\
-\texttt{494\_bus\_n40} & 40 & 52 & 1.1233 & 1.0278 & 4.4392 & 1.8317 & 4.5404 \\
-\texttt{662\_bus\_n40} & 40 & 50 & 0.9216 & 0.6827 & 4.5383 & 0.5179 & 3.5294 \\
-\midrule
-\textbf{Solved} & - & - & \textbf{4/4} & \textbf{4/4} & \textbf{4/4} & \textbf{4/4} & \textbf{4/4} \\
-\textbf{Mean Time (s)} & - & - & \textbf{0.580} & 0.798 & 2.960 & 1.034 & 2.045 \\
-\textbf{Speedup (geom) [2/4]} & - & - & 1.00$\times$ & \textbf{1.21$\times$} & 0.23$\times$ & 1.04$\times$ & 0.25$\times$ \\
-\bottomrule
-\multicolumn{8}{l}{\footnotesize Note: Solve times represent median over 5 random relabeling seeds. Speedup relative to CaDiCaL 195 on instances $\ge 0.1\text{s}$.} \\
-\end{tabular}
-\end{table}
-
-\subsection{SAT Solver Comparison}
-Table~\ref{tab:table_solvers_small} and Table~\ref{tab:table_solvers_medium} present the comparison among the five SAT solvers on small and medium graphs, respectively. The medium-graph configuration includes four target instances. The table is a historical summary archived from Phase C; it is not regenerated from the current 44-record snapshot. The current snapshot does contain 20 \texttt{solvers\_medium} records across all four configured instances, but those measurements must not be silently substituted for the historical table values. The source mapping and coverage differences are documented in \texttt{docs/EXPERIMENT\_PROVENANCE.md}.
-
-On small graphs ($N \le 40$), all five solvers comfortably solve all instances within seconds. Glucose~4 and CaDiCaL~195 exhibit the fastest runtimes, achieving geometric mean speedups of $1.21\times$ and $1.00\times$, while MapleChrono and Lingeling require roughly $3\text{--}4\times$ longer.
-
-% --- TABLE 2: SOLVERS MEDIUM ---
-\begin{table}
-\centering
-\caption{SAT Solver Performance Comparison on Medium Graphs ($N \in \{60, 80\}$)}
-\label{tab:table_solvers_medium}
-\begin{tabular}{lrrrrrrr}
-\toprule
-Dataset & $N$ & $|E|$ & CaDiCaL 195 & Glucose 4 & MapleChrono & MiniSat 2.2 & Lingeling \\
-\midrule
-\texttt{494\_bus\_n60} & 60 & 76 & \textbf{34.14} & TO(7) & 596.66 & TO(7) & 215.29 \\
-\texttt{494\_bus\_n80} & 80 & 97 & -- & -- & -- & -- & -- \\
-\texttt{662\_bus\_n60} & 60 & 77 & \textbf{26.84} & TO(9) & TO(9) & TO(9) & 112.73 \\
-\texttt{662\_bus\_n80} & 80 & 105 & \textbf{45.77} & TO(11) & TO(11) & TO(10) & 191.41 \\
-\midrule
-\textbf{Solved} & - & - & \textbf{3/3} & 0/3 & 1/3 & 0/3 & \textbf{3/3} \\
-\textbf{PAR2 (s)} & - & - & \textbf{35.59} & 1200.00 & 998.89 & 1200.00 & 173.14 \\
-\textbf{Speedup (geom) [3/3]} & - & - & \textbf{1.00$\times$} & - & - & - & 0.21$\times$ \\
-\bottomrule
-\multicolumn{8}{l}{\footnotesize TO($k$): timeout at 600s with incumbent $k$; PAR2 assigns 1200s to a timeout. --: no tracked run, not a timeout. Table values are retained historical summaries from the Phase C archive and are not reconstructed from the current 44-record snapshot.} \\
-\end{tabular}
-\end{table}
-
-On medium graphs ($N = 60, 80$), solver performance diverges sharply. The displayed values are historical Phase C results, not a newly regenerated summary from the current snapshot. The table preserves its original coverage and missing-value notation; it should not be interpreted as a complete representation of the four-instance configuration or as output from the current `results/runs.jsonl`.
-
-\begin{figure}
-\centering
-\includegraphics[width=0.48\textwidth]{figures/cactus_solvers_small}
-\hfill
-\includegraphics[width=0.48\textwidth]{figures/cactus_solvers_medium}
-\caption{Cactus plots comparing SAT solver runtimes on small graphs (left) and medium graphs (right).}
-\label{fig:cactus_solvers}
-\end{figure}
+The current snapshot contains 44 unique JSONL records: 24 \texttt{OPTIMAL}, 12 \texttt{TIMEOUT}, 4 \texttt{UNAVAILABLE}, 3 \texttt{SIZE\_LIMIT}, and 1 \texttt{FEASIBLE}. Four records are tagged as the standalone \texttt{encodings} group and are also members of \texttt{exact\_solvers}; group counts therefore overlap. Each dataset/configuration is represented by one run in this snapshot. Reported runtimes are per-run measurements, not repeated-run averages or statistical estimates.
 
 \subsection{Pairwise Encoding vs. Order Encoding}
-The repository provides direct Pairwise Encoding and Order Encoding for CBMP. The configured \texttt{encodings} group holds solver (CaDiCaL~195), incremental solving mode, symmetry-breaking flags, RCM upper-bound heuristic, and timeout constant across both formulations; the encoding itself is the controlled factor. The analysis pipeline exports per-instance status, validated incumbent or optimum, solve time, wall time, encoding time, and variable/clause counts when those measurements are present. A paired summary matches records by dataset, solver, relabeling seed, symmetry settings, heuristic, solving mode, and EO strategy. Runtime ratios are computed only when both formulations prove the same validated optimum and have finite positive solve times.
 
-The current \\texttt{results/runs.jsonl} snapshot includes records from the \\texttt{encodings} group, but its metadata identifies a dirty source tree. Quantitative Pairwise-vs-Order claims must therefore be checked against the actual records and regenerated analysis outputs; no missing runtime, CNF size, optimum, timeout, or paired sample is inferred from configuration alone.
+Table~\ref{tab:current_encoding_comparison} compares the two SAT encodings on four small instances. Every pair uses the same dataset, CaDiCaL~195, incremental solving, Commander EO, rotation and reflection symmetry breaking, and the RCM initial upper bound. All eight runs prove the same optimum for their corresponding graph.
+
+\begin{table*}[t]
+\centering
+\caption{Current-snapshot comparison of Order and Pairwise Encoding.}
+\label{tab:current_encoding_comparison}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lrr|rrr|rrr|r}
+\toprule
+Dataset & $N$ & $|E|$ &
+\multicolumn{3}{c|}{Order Encoding} &
+\multicolumn{3}{c|}{Pairwise Encoding} &
+Pairwise / Order \\
+ & & & Solve time (s) & Variables & Clauses &
+Solve time (s) & Variables & Clauses & Runtime ratio \\
+\midrule
+\texttt{14\_bus} & 14 & 20 & 0.00022 & 504 & 2657 & 0.00045 & 392 & 7232 & 2.00\\
+\texttt{30\_bus} & 30 & 39 & 0.04277 & 2310 & 14455 & 0.11332 & 1860 & 100276 & 2.65\\
+\texttt{494\_bus\_n40} & 40 & 52 & 0.94773 & 4080 & 46361 & 0.92063 & 3280 & 492301 & 0.97\\
+\texttt{662\_bus\_n40} & 40 & 50 & 0.87140 & 4080 & 35641 & 14.77033 & 3280 & 331821 & 16.95\\
+\bottomrule
+\end{tabular}%
+}
+\end{table*}
+
+Across the four paired instances, the geometric mean of the Pairwise-to-Order runtime ratios is 3.05. Order Encoding is faster on three instances, while Pairwise is slightly faster on \texttt{494\_bus\_n40}. The largest observed difference is on \texttt{662\_bus\_n40}, where Pairwise requires 16.95 times the Order solve time and generates substantially more clauses. These are single-run observations on four instances; they do not establish statistical significance or general performance dominance.
 
 \paragraph{CNSPlots visualization.}
-The plotting pipeline uses the CNSPlots \texttt{boxplot} API for validated OPTIMAL runtimes and reports the status coverage and sample counts for both encodings. It skips the comparison chart unless both encodings have at least one valid OPTIMAL runtime. When a valid plot is generated, the pipeline saves it to both the analysis output directory and \texttt{report/figures/}; the report includes it only when that file exists. The current snapshot contains four \texttt{encodings} records (three Order and one Pairwise), all OPTIMAL. The CNSPlots comparison image is optional and is included only if a verified generated image exists; the current report archive does not contain that image.
-
-\IfFileExists{figures/cnsplots_encoding_comparison.png}{
+The analysis script uses the CNSPlots \texttt{boxplot} API to visualize validated optimal runtimes from both encodings. The figure is generated from the current records by \texttt{python analysis/make\_plots.py results/runs.jsonl} and saved under \texttt{results/figures/}. It is included when the generated file is present:
+\IfFileExists{../results/figures/cnsplots_encoding_comparison.png}{
 \begin{figure}[t]
 \centering
-\includegraphics[width=0.78\textwidth]{figures/cnsplots_encoding_comparison}
-\caption{CNSPlots comparison of validated OPTIMAL runtime observations for Pairwise and Order Encoding. The annotation also reports the recorded solver-status coverage.}
-\label{fig:cnsplots_encoding_comparison}
+\includegraphics[width=0.78\textwidth]{../results/figures/cnsplots_encoding_comparison}
+\caption{CNSPlots comparison of the current validated OPTIMAL runtime observations for Pairwise and Order Encoding.}
+\label{fig:current_encoding_cnsplots}
 \end{figure}
 }{
-\noindent\textit{The CNSPlots encoding figure is omitted because no verified encoding-comparison image is present.}
+\noindent\textit{The CNSPlots figure is generated by the analysis command above; it is omitted from this source build until that command has produced the image.}
 }
 
-\subsection{Method Comparison: SAT vs. CP-SAT vs. CPLEX}
-The target comparison comprises Best SAT, OR-Tools CP-SAT, IBM CPLEX MIP, IBM CPLEX CP Optimizer, and Gurobi. The current snapshot contains a partial \texttt{exact\_solvers} batch (24 records over four small instances), but it does not reproduce the seven-instance historical table below. The table retains Phase C SAT/CP-SAT/CPLEX MIP values for context and marks CPLEX CP and Gurobi as missing; it is not a newly regenerated exact-solver benchmark summary.
+\subsection{Exact-Solver Comparison}
 
-% --- TABLE 3: METHODS COMPARISON ---
-\begin{table}
+The exact-solver experiment covers four small instances and six formulations: SAT with Order Encoding, SAT with Pairwise Encoding, CP-SAT, CPLEX MIP, CPLEX CP Optimizer, and Gurobi. Table~\ref{tab:current_exact_solvers} reports the status and solve time recorded for each available run.
+
+\begin{table*}[t]
 \centering
-\caption{Comparison of Exact Methods: Best SAT vs. CP-SAT vs. CPLEX MIP/CP vs. Gurobi}
-\label{tab:table_methods}
-\begin{tabular}{lrrrrrrr}
+\caption{Current-snapshot exact-solver results.}
+\label{tab:current_exact_solvers}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lrrrrrr}
 \toprule
-Dataset & $N$ & $|E|$ & Best SAT & CP-SAT & CPLEX MIP & CPLEX CP & Gurobi \\
+Dataset & SAT / Order & SAT / Pairwise & CP-SAT & CPLEX MIP & CPLEX CP & Gurobi \\
 \midrule
-\texttt{14\_bus} & 14 & 20 & \textbf{0.0004} & 0.0328 & 0.4610 & -- & -- \\
-\texttt{30\_bus} & 30 & 39 & \textbf{0.0547} & 0.2842 & SL & -- & -- \\
-\texttt{494\_bus\_n40} & 40 & 52 & \textbf{0.7132} & 1.3461 & SL & -- & -- \\
-\texttt{662\_bus\_n40} & 40 & 50 & 1.7629 & \textbf{0.5772} & SL & -- & -- \\
-\texttt{494\_bus\_n60} & 60 & 76 & 34.1434 & \textbf{5.2765} & SL & -- & -- \\
-\texttt{662\_bus\_n60} & 60 & 77 & 26.8385 & \textbf{5.5421} & SL & -- & -- \\
-\texttt{662\_bus\_n80} & 80 & 105 & \textbf{45.7719} & 101.2120 & SL & -- & -- \\
-\midrule
-\textbf{Solved} & - & - & \textbf{7/7} & \textbf{7/7} & 1/7 & -- & -- \\
-\textbf{Size Limit (SL)} & - & - & 0 & 0 & \textbf{6} & -- & -- \\
-\textbf{Mean Time (s)} & - & - & \textbf{15.612} & 16.324 & - & -- & -- \\
-\textbf{Speedup (geom) [5/7]} & - & - & 1.00$\times$ & \textbf{1.87$\times$} & - & -- & -- \\
+\texttt{14\_bus} & OPT\\0.0002 s & OPT\\0.0004 s & OPT\\0.0127 s & OPT\\0.1028 s & OPT\\0.0383 s & UNAVAILABLE\\
+\texttt{30\_bus} & OPT\\0.0428 s & OPT\\0.1133 s & OPT\\0.0981 s & SIZE LIMIT & OPT\\0.1914 s & UNAVAILABLE\\
+\texttt{494\_bus\_n40} & OPT\\0.9477 s & OPT\\0.9206 s & OPT\\1.0075 s & SIZE LIMIT & OPT\\38.5758 s & UNAVAILABLE\\
+\texttt{662\_bus\_n40} & OPT\\0.8714 s & OPT\\14.7703 s & OPT\\0.7661 s & SIZE LIMIT & FEASIBLE\\UB=7, LB=4, 600.4 s wall & UNAVAILABLE\\
 \bottomrule
-\multicolumn{8}{l}{\footnotesize SL: CPLEX MIP Community Edition size limit. --: no committed run record for CPLEX CP/Gurobi. Historical SAT/CP-SAT/CPLEX MIP values cannot be regenerated from the current snapshot; this is not a verified current exact\_solvers summary.} \\
-\end{tabular}
-\end{table}
+\multicolumn{7}{l}{\footnotesize OPT: optimality proved; FEASIBLE: incumbent found but optimality not proved; SIZE LIMIT: solver model exceeds the available CPLEX edition limit.}\\
+\multicolumn{7}{l}{\footnotesize UNAVAILABLE: the corresponding Gurobi solver was not available in the recorded environment. Times in OPT cells are solver solve times.}\\
+\end{tabular}%
+}
+\end{table*}
 
-\paragraph{CPLEX MIP Baseline:} CPLEX solves only \texttt{14\_bus} ($N=14$, 0.461~s). For all instances with $N \ge 30$, CPLEX exceeds the 1000-variable Community Edition threshold and aborts with a Size Limit (SL) status. This illustrates the acute modeling overhead of MIP for non-linear cyclic distance metrics.
+Both SAT encodings and CP-SAT prove optimality on all four instances. CPLEX MIP proves the optimum only on \texttt{14\_bus}; its other three runs terminate with \texttt{SIZE\_LIMIT}. CPLEX CP Optimizer proves optimality on three instances and returns a feasible incumbent with $UB=7$ and $LB=4$ on \texttt{662\_bus\_n40}. Gurobi is recorded as \texttt{UNAVAILABLE} on all four instances; this status is not a timeout and is not evidence of solver performance.
 
-\paragraph{SAT vs. CP-SAT:} Both Best SAT and CP-SAT solve all 7 instances to global optimality. CP-SAT demonstrates fast filtering on the $N=60$ instances (\texttt{494\_bus\_n60}: 5.28~s vs. 34.14~s; \texttt{662\_bus\_n60}: 5.54~s vs. 26.84~s), leveraging integer domain propagation. However, as graph size scales to $N=80$ (\texttt{662\_bus\_n80}), SAT decisively outperforms CP-SAT (45.77~s vs. 101.21~s, a $2.21\times$ speedup for SAT). Across all 7 instances, SAT achieves a lower mean runtime (15.61~s vs. 16.32~s).
+\subsection{SAT Solver Comparison on Medium Instances}
 
-\paragraph{CPLEX CP Optimizer and Gurobi:} Both are implemented as distinct exact baselines and are configured in the experiment pipeline. The historical Phase C table contains no execution records for either solver, so their cells are intentionally marked missing there. The current snapshot's solver-level status records are a separate partial experiment and do not retroactively populate this historical table. CPLEX CP and Gurobi must not be interpreted as timed out or unavailable without an actual execution record.
+Table~\ref{tab:current_medium_solvers} reports the five SAT solvers on four medium subgraphs. For \texttt{OPTIMAL} runs, the cell shows the solver solve time. For \texttt{TIMEOUT} runs, it shows the best incumbent upper bound and the elapsed wall time, which is approximately the configured 600-second limit. A timeout incumbent is not a proof of optimality.
 
-% --- TABLE 4: METHODS LARGE ---
-\begin{table}
+\begin{table*}[t]
 \centering
-\footnotesize
-\setlength{\tabcolsep}{4.5pt}
-\caption{Comparison of Methods on Large Graphs ($N \ge 80$, Original Labels)}
-\label{tab:table_methods_large}
-\begin{tabular}{lrrrrrrrrr}
+\caption{Current-snapshot SAT solver comparison on medium instances.}
+\label{tab:current_medium_solvers}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lrrrrr}
 \toprule
-Dataset & $N$ & $|E|$ & SAT Stat & SAT UB & SAT (s) & CP-SAT Stat & CP-SAT UB & $LB_{\text{comb}}$ & CP-SAT (s) \\
+Dataset & CaDiCaL 195 & Glucose 4 & MapleChrono & MiniSat 2.2 & Lingeling \\
 \midrule
-\texttt{494\_bus\_n80} & 80 & 97 & \textbf{OPT} & 8 & 370.97 & \textbf{OPT} & 8 & 8 & 12.33 \\
-\texttt{494\_bus\_n100} & 100 & 118 & \textbf{OPT} & 9 & 249.38 & \textbf{OPT} & 9 & 9 & 108.01 \\
-\texttt{662\_bus\_n100} & 100 & 130 & \textbf{OPT} & 11 & \textbf{235.54} & TO & 12 & 5 & 600.01 \\
-\texttt{494\_bus\_n150} & 150 & 175 & TO & 13 & 391.08 & TO & 20 & 5 & 600.01 \\
-\texttt{662\_bus\_n150} & 150 & 190 & TO & 17 & 158.28 & TO & 20 & 5 & 600.01 \\
-\texttt{494\_bus} & 494 & 586 & TO & 63 & 596.88 & TO & 54 & 5 & 600.01 \\
-\texttt{662\_bus} & 662 & 906 & TO & 131 & 484.08 & TO & 147 & 5 & 600.02 \\
+\texttt{494\_bus\_n60} & OPT\\UB=7; 35.68 s & TO\\UB=7; 600.4 s wall & TO\\UB=7; 600.5 s wall & TO\\UB=7; 600.5 s wall & OPT\\UB=7; 227.03 s\\
+\texttt{662\_bus\_n60} & OPT\\UB=9; 15.84 s & TO\\UB=9; 600.4 s wall & OPT\\UB=9; 440.76 s & TO\\UB=9; 600.5 s wall & OPT\\UB=9; 163.26 s\\
+\texttt{494\_bus\_n80} & OPT\\UB=8; 140.59 s & TO\\UB=9; 600.4 s wall & TO\\UB=10; 600.4 s wall & TO\\UB=9; 600.4 s wall & TO\\UB=8; 600.4 s wall\\
+\texttt{662\_bus\_n80} & OPT\\UB=10; 54.79 s & TO\\UB=11; 600.4 s wall & TO\\UB=11; 600.4 s wall & TO\\UB=11; 600.4 s wall & OPT\\UB=10; 143.17 s\\
 \bottomrule
-\multicolumn{10}{l}{\footnotesize OPT: Proved optimal; TO: Timeout (600s). $LB_{\text{comb}} = \max(LB_{\text{degree}}, \text{cpsat\_solver\_lb})$. SAT (s) is accumulated solve time.} \\
-\end{tabular}
-\end{table}
+\multicolumn{6}{l}{\footnotesize OPT: optimality proved; TO: 600-second time limit reached. OPT cells report solver time; TO cells report process wall time. UB in TO cells is an incumbent only.}\\
+\end{tabular}%
+}
+\end{table*}
 
-\paragraph{Large Graph Scaling ($N \ge 80$):}
-Table~\ref{tab:table_methods_large} evaluates large instances up to $N=662$. Remarkably, on \texttt{662\_bus\_n100} ($N=100, |E|=130$), Best SAT proves the global optimum ($\text{UB}^* = 11$) in 235.54~seconds, whereas CP-SAT times out at 600~seconds with an unproven bound of 12. For $N \ge 150$, both approaches time out at 600~seconds, yet SAT consistently yields competitive or tighter incumbent upper bounds during intermediate iterations (e.g., 13 vs. 20 on \texttt{494\_bus\_n150}, and 17 vs. 20 on \texttt{662\_bus\_n150}).
-
-% --- TABLE: PER DATASET SUMMARY ---
-\begin{table}
-\centering
-\caption{Comprehensive SAT Optimization Results Across All 16 Benchmark Graphs}
-\label{tab:table_per_dataset}
-\begin{tabular}{lrrrrrrrr}
-\toprule
-Dataset & $N$ & $|E|$ & Status & $\text{UB}^*$ & $LB_{\text{deg}}$ & Solve Time (s) & Wall Time (s) & Iterations \\
-\midrule
-\texttt{14\_bus} & 14 & 20 & OPTIMAL & 3 & 3 & 0.0004 & 0.65 & 3 \\
-\texttt{30\_bus} & 30 & 39 & OPTIMAL & 4 & 2 & 0.0547 & 0.62 & 4 \\
-\texttt{494\_bus\_n40} & 40 & 52 & OPTIMAL & 5 & 5 & 0.7132 & 1.29 & 11 \\
-\texttt{662\_bus\_n40} & 40 & 50 & OPTIMAL & 7 & 5 & 1.7629 & 2.34 & 8 \\
-\texttt{494\_bus\_n50} & 50 & 65 & OPTIMAL & 6 & 5 & 4.6657 & 5.35 & 11 \\
-\texttt{662\_bus\_n50} & 50 & 64 & OPTIMAL & 8 & 5 & 1.1949 & 1.75 & 6 \\
-\texttt{494\_bus\_n60} & 60 & 76 & OPTIMAL & 7 & 5 & 34.1434 & 34.79 & 10 \\
-\texttt{662\_bus\_n60} & 60 & 77 & OPTIMAL & 9 & 5 & 26.8385 & 27.39 & 13 \\
-\texttt{494\_bus\_n80} & 80 & 97 & OPTIMAL & 8 & 5 & 370.9714 & 371.57 & 9 \\
-\texttt{662\_bus\_n80} & 80 & 105 & OPTIMAL & 10 & 5 & 45.7719 & 46.45 & 8 \\
-\texttt{494\_bus\_n100} & 100 & 118 & OPTIMAL & 9 & 5 & 249.3777 & 250.15 & 13 \\
-\texttt{662\_bus\_n100} & 100 & 130 & OPTIMAL & 11 & 5 & 235.5427 & 236.31 & 14 \\
-\texttt{494\_bus\_n150} & 150 & 175 & TIMEOUT & 13 & 5 & 391.0825 & 600.48 & 18 \\
-\texttt{662\_bus\_n150} & 150 & 190 & TIMEOUT & 17 & 5 & 158.2803 & 600.49 & 16 \\
-\texttt{494\_bus} & 494 & 586 & TIMEOUT & 63 & 5 & 596.8806 & 600.52 & 6 \\
-\texttt{662\_bus} & 662 & 906 & TIMEOUT & 131 & 5 & 484.0771 & 600.54 & 6 \\
-\bottomrule
-\multicolumn{9}{l}{\footnotesize Note: Solve Time is cumulative time across all SAT iterations. Wall Time includes Python process lifecycle and encoding.} \\
-\end{tabular}
-\end{table}
-
-\subsection{Ablation Study}
-To dissect the contribution of each algorithmic component, we evaluate five variants under identical solver settings (CaDiCaL~195):
-\begin{itemize}
-    \item \texttt{none}: Baseline without symmetry breaking and with trivial upper bound ($\lfloor N/2 \rfloor + 1$).
-    \item \texttt{rotation}: With rotation symmetry breaking ($f(v_0) = 0$).
-    \item \texttt{rot\_ref}: With both rotation and reflection symmetry breaking ($f(v_1) < f(v_{N-1})$).
-    \item \texttt{heur\_ub}: With RCM initial upper bound alone.
-    \item \texttt{all}: Combining rotation, reflection, and RCM upper bound.
-\end{itemize}
-
-% --- TABLE 5: ABLATION SMALL ---
-\begin{table}
-\centering
-\caption{Ablation Study on Small Graphs ($N \le 40$, Mean over 5 Repetitions)}
-\label{tab:table_ablation_small}
-\begin{tabular}{lrrrrrrr}
-\toprule
-Dataset & $N$ & $|E|$ & \texttt{none} & \texttt{rotation} & \texttt{rot\_ref} & \texttt{heur\_ub} & \texttt{all} \\
-\midrule
-\texttt{14\_bus} & 14 & 20 & 0.0016 & 0.0003 & 0.0003 & 0.0032 & \textbf{0.0002} \\
-\texttt{30\_bus} & 30 & 39 & 0.6624 & 0.1140 & 0.0537 & 0.6789 & \textbf{0.0527} \\
-\texttt{494\_bus\_n40} & 40 & 52 & 2.2366 & \textbf{0.4966} & 1.0584 & 4.9084 & 0.7135 \\
-\texttt{662\_bus\_n40} & 40 & 50 & 5.4982 & \textbf{0.2405} & 0.8778 & 9.8131 & 1.7468 \\
-\midrule
-\textbf{Solved} & - & - & 4/4 & 4/4 & 4/4 & 4/4 & 4/4 \\
-\textbf{Mean Time (s)} & - & - & 2.102 & \textbf{0.213} & 0.499 & 3.853 & 0.638 \\
-\textbf{Speedup (geom) [3/4]} & - & - & 1.00$\times$ & \textbf{8.42$\times$} & 5.47$\times$ & 0.63$\times$ & 4.99$\times$ \\
-\bottomrule
-\multicolumn{8}{l}{\footnotesize Speedup computed over instances with baseline runtime $\ge 0.1\text{s}$.} \\
-\end{tabular}
-\end{table}
-
-% --- TABLE 6: ABLATION MEDIUM ---
-\begin{table}
-\centering
-\caption{Ablation Study on Medium Boundary Graph (\texttt{662\_bus\_n60})}
-\label{tab:table_ablation_medium}
-\begin{tabular}{lrrrrrrr}
-\toprule
-Dataset & $N$ & $|E|$ & \texttt{none} & \texttt{rotation} & \texttt{rot\_ref} & \texttt{heur\_ub} & \texttt{all} \\
-\midrule
-\texttt{662\_bus\_n60} & 60 & 77 & 279.44 & 46.48 & \textbf{12.27} & 74.46 & 26.97 \\
-\midrule
-\textbf{Solved} & - & - & 1/1 & 1/1 & 1/1 & 1/1 & 1/1 \\
-\textbf{Speedup (geom) [1/1]} & - & - & 1.00$\times$ & 6.01$\times$ & \textbf{22.77$\times$} & 3.75$\times$ & 10.36$\times$ \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-\paragraph{Impact of Rotation Symmetry Breaking:}
-As shown in Table~\ref{tab:table_ablation_small}, adding rotation symmetry breaking alone (\texttt{rotation}) provides an overwhelming performance improvement, reducing mean solve time from 2.102~s to 0.213~s on small graphs (an $8.42\times$ geometric speedup). On the medium instance \texttt{662\_bus\_n60} (Table~\ref{tab:table_ablation_medium}), rotation symmetry breaking reduces runtime from 279.44~s to 46.48~s ($6.01\times$ speedup). By eliminating $N$ circularly shifted permutations, rotation symmetry breaking eliminates entire subtrees of isomorphic assignments.
-
-\paragraph{Impact of Reflection Symmetry Breaking:}
-When reflection symmetry breaking is added on top of rotation (\texttt{rot\_ref}), the effect depends on instance size:
-\begin{itemize}
-    \item On small graphs ($N \le 40$), the addition of $N$ ternary clauses slightly increases clause density without substantially reducing search depth, resulting in a moderate speedup ($5.47\times$ vs. $8.42\times$ for rotation alone).
-    \item On medium graphs (\texttt{662\_bus\_n60}), reflection symmetry breaking delivers a spectacular performance boost: solve time plummets from 46.48~s down to 12.27~s, delivering a combined \textbf{22.77$\times$ speedup} over \texttt{none}.
-\end{itemize}
-
-\paragraph{Impact of Initial Heuristic Upper Bound:}
-Using the RCM heuristic alone (\texttt{heur\_ub}) without symmetry breaking results in a slowdown on small graphs (0.63$\times$ speedup, mean time 3.85~s vs. 2.10~s). This occurs because starting from a tighter bound forces the solver immediately into hard, highly-constrained subproblems without eliminating symmetric UNSAT branches. However, when combined with symmetry breaking (\texttt{all}), the RCM bound prunes intermediate SAT iterations while symmetry breaking keeps the final UNSAT proof manageable.
-
-% --- TABLE 7: ABLATION FAMILY ---
-\begin{table}
-\centering
-\caption{Ablation Study Across Graph Families Under Random Vertex Relabeling (30 Pairs)}
-\label{tab:table_ablation_family}
-\begin{tabular}{llrrrr}
-\toprule
-Comparison Group & Variant & Median Time Ratio & IQR [25\%, 75\%] & [Min, Max] & Faster Pairs \\
-\midrule
-Variant vs. \texttt{none} & \texttt{rotation} & 0.4506 & [0.2992, 0.7606] & [0.1085, 1.2073] & \textbf{28/30} \\
-Variant vs. \texttt{none} & \texttt{rot\_ref} & 0.5189 & [0.2866, 0.9944] & [0.1867, 1.6154] & 22/30 \\
-Variant vs. \texttt{none} & \texttt{heur\_ub} & 0.8544 & [0.6120, 1.0007] & [0.3879, 2.3016] & 22/30 \\
-Variant vs. \texttt{none} & \texttt{all} & \textbf{0.4043} & [0.2792, 0.6705] & [0.1094, 1.1330] & \textbf{27/30} \\
-\midrule
-\texttt{rot\_ref} vs. \texttt{rotation} & \texttt{rot\_ref} & 1.1360 & [0.9261, 1.3825] & [0.5898, 1.8817] & 12/30 \\
-\texttt{all} vs. \texttt{rot\_ref} & \texttt{all} & 0.8037 & [0.5404, 1.2279] & [0.1116, 1.8718] & 21/30 \\
-\texttt{all} vs. \texttt{rotation} & \texttt{all} & 0.8785 & [0.6430, 1.2980] & [0.2100, 2.1826] & 19/30 \\
-\bottomrule
-\multicolumn{6}{l}{\footnotesize Note: Evaluated on \texttt{494\_bus\_n40} (10 seeds), \texttt{662\_bus\_n40} (10 seeds), \texttt{494\_bus\_n50} (5 seeds), \texttt{662\_bus\_n50} (5 seeds).} \\
-\end{tabular}
-\end{table}
-
-\paragraph{Statistical Evaluation on Relabeled Graph Families:}
-To avoid bias from arbitrary vertex orderings, Table~\ref{tab:table_ablation_family} reports pairwise runtime ratios across 30 randomized graph instances (10 seeds on \texttt{n40} and 5 seeds on \texttt{n50}). The combined configuration \texttt{all} achieves a median runtime ratio of \textbf{0.4043} relative to \texttt{none} (over a $59\%$ reduction in median runtime) and is faster in \textbf{27 out of 30 pairs}. Rotation alone is faster in \textbf{28 out of 30 pairs} (median ratio 0.4506).
-
-\begin{figure}
-\centering
-\includegraphics[width=0.48\textwidth]{figures/cactus_ablation_medium}
-\hfill
-\includegraphics[width=0.48\textwidth]{figures/boxplot_ablation_family}
-\caption{Ablation performance: Medium graph cactus plot (left) and runtime ratio boxplots across 30 relabeled graph family instances (right).}
-\label{fig:ablation_plots}
-\end{figure}
-
-\subsection{Phase Analysis: SAT Feasibility vs. UNSAT Optimality Proof}
-To understand why symmetry breaking is so effective, we separate the execution time into two phases:
-\begin{enumerate}
-    \item \textbf{Previous Iterations Time ($T_{\text{prev}}$)}: The cumulative time spent in satisfiable iterations finding tighter incumbent layouts.
-    \item \textbf{Last Iteration Time ($T_{\text{last}}$)}: The time spent in the final unsatisfiable call proving that no layout with bandwidth $\le \text{UB}^* - 1$ exists.
-\end{enumerate}
-
-% --- TABLE 8: ABLATION PHASES ---
-\begin{table}
-\centering
-\caption{Phase Decomposition: Median Times and Ratio of Final UNSAT Step}
-\label{tab:table_ablation_phases}
-\begin{tabular}{rlrrr}
-\toprule
-Graph Size ($N$) & Variant & Median $T_{\text{last}}$ (s) & Median $T_{\text{prev}}$ (s) & UNSAT Fraction ($T_{\text{last}} / T_{\text{total}}$) \\
-\midrule
-40 & \texttt{none} & 1.1557 & 0.6861 & 67.21\% \\
-40 & \texttt{rotation} & 0.2552 & 0.5823 & 34.24\% \\
-40 & \texttt{rot\_ref} & 0.3789 & 0.4786 & 46.33\% \\
-40 & \texttt{heur\_ub} & 0.7635 & 0.6022 & 61.07\% \\
-40 & \texttt{all} & \textbf{0.2099} & 0.5307 & \textbf{25.41\%} \\
-\midrule
-50 & \texttt{none} & 14.6611 & 1.1817 & \textbf{90.82\%} \\
-50 & \texttt{rotation} & 4.5502 & 1.4048 & 72.15\% \\
-50 & \texttt{rot\_ref} & 3.4413 & 2.1841 & 64.82\% \\
-50 & \texttt{heur\_ub} & 6.8488 & 1.6089 & 78.50\% \\
-50 & \texttt{all} & \textbf{2.3708} & 0.9201 & \textbf{76.55\%} \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-Table~\ref{tab:table_ablation_phases} presents the results. On unaugmented search (\texttt{none}), proving UNSAT accounts for \textbf{67.21\%} of runtime at $N=40$ and surges to \textbf{90.82\%} at $N=50$ (14.66~s out of 15.84~s). Because an UNSAT proof requires refuting the entire search space, exploring symmetric branches exponentially inflates refutation size. Rotation and reflection symmetry breaking shrink the refutation proof directly: for $N=50$, \texttt{all} slashes the final UNSAT time from 14.66~s down to \textbf{2.37~s} (a $6.19\times$ reduction in proof time).
+Across the 20 medium-instance runs, eight reach \texttt{OPTIMAL} and twelve reach \texttt{TIMEOUT}. CaDiCaL~195 proves optimality on all four instances; Lingeling on three; MapleChrono on one; Glucose~4 and MiniSat~2.2 do not prove optimality on any of the four. The number of instances and repetitions is limited, so this comparison should be interpreted as the observed outcome of the current batch rather than a general ranking of SAT solvers.
 
 \subsection{Discussion and Limitations}
-Our empirical findings reveal clear trade-offs:
-\begin{enumerate}
-    \item \textbf{Symmetry Breaking Overhead vs. Pruning}: On very small graphs ($N \le 30$), symmetry breaking overhead is negligible, but so is search space size. On medium and hard graphs ($N \ge 60$), symmetry breaking provides orders-of-magnitude acceleration.
-    \item \textbf{Scalability Ceiling}: Beyond $N = 100$, CNF clause generation scales as $\mathcal{O}(|E| \cdot N + N^2)$. For $N = 494$, the formula requires roughly 500,000 variables and millions of clauses, leading to memory pressure and timeout during incremental solving. Future work should investigate pseudo-Boolean encodings or lazy clause generation to mitigate clausal expansion.
-\end{enumerate}
 
-% =========================================================================
+The current results support three conclusions. First, both Pairwise and Order Encoding are implemented and prove the same optimum on the four paired small instances. Second, the exact-solver results demonstrate agreement among SAT, CP-SAT, and the completed CPLEX runs where optimality is proved, while also exposing practical solver availability and model-size constraints. Third, the medium solver batch shows that the ability to find an incumbent does not imply that a solver proves optimality within the time limit.
+
+The current result snapshot does not contain runs on the full \texttt{494\_bus} and \texttt{662\_bus} matrices, so large-matrix scalability is not yet demonstrated by these results. It also contains only one run per dataset/configuration; repeated trials and statistical summaries are not available. No current ablation, randomized-label family, or phase-decomposition records are included, so no claims about those experiments are made here.
 
 \section{Conclusion}
-% =========================================================================
 
-In this work, we presented an exact SAT-based framework for the Cyclic Bandwidth Minimization Problem (CBMP). By integrating Order Encoding for circular distance bounds, Commander Encoding for bijective permutation constraints, and mathematically sound rotation and reflection symmetry breaking, our approach prunes the $2N$-fold dihedral symmetry inherent to circular layouts.
+This repository implements CBMP solving with both Pairwise and Order SAT encodings, incremental SAT solving, Commander exactly-one constraints, and rotation/reflection symmetry breaking. The current snapshot records successful optimality proofs from both SAT encodings and CP-SAT on four small instances, together with a five-solver SAT comparison on four medium subgraphs. CPLEX MIP is limited by the available edition on three instances; CPLEX CP Optimizer has one feasible-but-unproven result; and Gurobi is unavailable in the recorded environment.
 
-The report preserves historical comparisons on 16 benchmark instances. The branch additionally tracks a 44-record exploratory batch in \\texttt{results/} (24 OPTIMAL, 12 TIMEOUT, 4 UNAVAILABLE, 3 SIZE\\_LIMIT, and 1 FEASIBLE), spanning \\texttt{encodings}, \\texttt{solvers\\_medium}, and \\texttt{exact\\_solvers}. Its environment metadata records source commit \\texttt{41271c4119a306ace4b42e734093ea773ab30bc2-dirty}; this dirty-source marker prevents exact source reconstruction. The current batch is partial and does not regenerate the historical Phase C/Phase D report tables. Table-to-source mappings and known coverage differences are recorded in \\texttt{docs/EXPERIMENT\\_PROVENANCE.md}. The following quantitative statements summarize those historical tables and should not be interpreted as independently reproduced by the current raw batch:
-\begin{enumerate}
-    \item CaDiCaL~195 is the top-performing SAT engine for CBMP, solving medium and large instances where Glucose~4, MiniSat~2.2, and MapleChrono time out.
-    \item Dual symmetry breaking achieves up to a $22.77\times$ speedup on medium boundary graphs and reduces median solve time across randomized graph families by more than $59\%$.
-    \item The final UNSAT proof dominates up to $90\%$ of overall runtime, and symmetry breaking provides its greatest acceleration by directly shrinking this refutation proof.
-    \item Best SAT scales beyond commercial MIP and outperforms CP-SAT on challenging instances (e.g., proving optimality on \texttt{662\_bus\_n100} where CP-SAT times out).
-\end{enumerate}
-Future work will focus on integrating graph decomposition techniques and exploring lazy clause generation architectures to extend exact CBMP solving to graphs with several hundreds of vertices.
+The full benchmark matrices are present in the repository, but the current snapshot does not yet include experiments on the $N=494$ and $N=662$ graphs. Future work should prioritize those large-instance runs and repeated trials before drawing stronger scalability or statistical conclusions.
 
-% =========================================================================
-% REFERENCES
-% =========================================================================
 
 \begin{thebibliography}{15}
 
