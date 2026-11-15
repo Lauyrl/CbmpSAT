@@ -24,7 +24,30 @@ The 44 records in `results/runs.jsonl` are distributed as follows:
 
 These group counts sum to 48 because a record may belong to more than one group. The JSONL contains 44 unique records; do not sum group totals to infer record count. Within the four encoding records, three use Order Encoding and one uses Pairwise Encoding. A single Pairwise observation is not sufficient for a robust paired performance conclusion.
 
-## 2. Phase archives
+## 2. Configured experiment-group coverage
+
+The experiment configuration defines 14 groups. In the current 44-record snapshot, only three group labels occur; the other 11 are configured but have no records in this snapshot. Configuration presence is not evidence of execution.
+
+| Group | Present in current snapshot | Interpretation |
+|---|---|---|
+| `encodings` | Yes (4 records) | Partial encoding comparison; one Pairwise record is insufficient for robust paired claims. |
+| `exact_solvers` | Yes (24 records) | Partial batch on four small instances. |
+| `solvers_medium` | Yes (20 records) | Partial medium solver batch on four configured instances. |
+| `per_dataset` | No | Configured; no current records. |
+| `solvers_small` | No | Configured; no current records. |
+| `methods` | No | Configured; no current records. |
+| `ablation_small` | No | Configured; no current records. |
+| `ablation_medium` | No | Configured; no current records. |
+| `ablation_family` | No | Configured; no current records. |
+| `methods_family` | No | Configured; no current records. |
+| `cpsat_large` | No | Configured; no current records. |
+| `methods_large_seeds` | No | Configured; no current records. |
+| `cplex_cp` | No | Configured; no current records. |
+| `gurobi` | No | Configured; no current records. |
+
+This coverage statement is tied to the 44-record snapshot and must be refreshed whenever `results/runs.jsonl` changes.
+
+## 3. Phase archives
 
 The phase directories are separate research snapshots, not sequential database migrations:
 
@@ -36,7 +59,7 @@ The phase directories are separate research snapshots, not sequential database m
 
 A phase directory may contain a table with a similar name to another phase. Similar filenames do not establish identical inputs, run settings, or a replacement relationship. Retain the phase prefix when citing these files.
 
-## 3. Report table source mapping
+## 4. Report table source mapping
 
 The quantitative tables in the current LaTeX report are historical, manually retained summaries. Their corresponding archived phase artifacts are:
 
@@ -54,7 +77,7 @@ The quantitative tables in the current LaTeX report are historical, manually ret
 
 The corresponding `cross_validation.csv` files in Phase C and Phase D provide supporting optimum-consistency checks for those phase archives. A `verified` value in a phase cross-validation file is evidence for that archived validation operation; it is not proof that the current snapshot reproduces the phase's runtime measurements.
 
-## 4. Figures and output directories
+## 5. Figures and output directories
 
 - `analysis/figures/`: analysis figures retained in the source tree.
 - `results/figures/`: generated outputs associated with the current `results/` input.
@@ -64,7 +87,7 @@ The report currently includes solver cactus plots, a medium ablation cactus plot
 
 A figure copied into `report/figures/` is not automatically reproducible from the current snapshot. To establish that, retain the input JSONL hash, source commit, command line, package environment and generation timestamp alongside the figure.
 
-## 5. Rules for future experiments and report updates
+## 6. Rules for future experiments and report updates
 
 1. Commit the exact source tree before running a benchmark. Record a clean commit and `git_dirty=false`.
 2. Store the raw JSONL and its environment metadata together in `results/`; do not merge runs from different source commits or incompatible configurations.
