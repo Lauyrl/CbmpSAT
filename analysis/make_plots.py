@@ -75,7 +75,9 @@ def plot_encoding_comparison(records, output_dirs=("results/figures",)):
         for encoding in ("order", "pairwise")
     }
     for record in records:
-        if "encodings" not in record.get("groups", []):
+        # The current exact_solvers batch also contains controlled Order/Pairwise
+        # runs. Use both groups so the current comparison covers all four datasets.
+        if not {"encodings", "exact_solvers"}.intersection(record.get("groups", [])):
             continue
         canon = get_canonical_key(record)
         if canon is None or canon[1] != "sat":
@@ -144,9 +146,9 @@ def plot_encoding_comparison(records, output_dirs=("results/figures",)):
 
     df = pd.DataFrame(selected)
     requested_dirs = (output_dirs,) if isinstance(output_dirs, str) else tuple(output_dirs)
-    report_figures_dir = str(REPO_ROOT / "report" / "figures")
-    # Keep the reproducibility artifact and the LaTeX-linked copy in sync.
-    all_output_dirs = tuple(dict.fromkeys(requested_dirs + (report_figures_dir,)))
+    # Current snapshot outputs live only under results/; never overwrite a curated
+    # report figure directory with a partially regenerated plot.
+    all_output_dirs = requested_dirs
     for out_dir in all_output_dirs:
         os.makedirs(out_dir, exist_ok=True)
         cns.setup_matplotlib()
@@ -576,6 +578,23 @@ def main():
 
     output_dirs = (output_dir,)
 
+    # Remove only figures managed by this script before regeneration. This prevents
+    # old ablation/method plots from surviving when their groups are absent.
+    managed_figures = (
+        "cactus_solvers_small", "cactus_solvers_medium", "cactus_methods",
+        "cactus_ablation_small", "cactus_ablation_medium", "cactus_exact_solvers",
+        "scatter_sb_vs_nosb_small", "ablation_median_time_small",
+        "ablation_median_time_medium", "ablation_iterations_and_unsat_small",
+        "ablation_iterations_and_unsat_medium", "cnsplots_encoding_comparison",
+        "boxplot_ablation_family",
+    )
+    os.makedirs(output_dir, exist_ok=True)
+    for figure_name in managed_figures:
+        for extension in (".png", ".pdf"):
+            stale_path = os.path.join(output_dir, figure_name + extension)
+            if os.path.isfile(stale_path):
+                os.remove(stale_path)
+
     # 1. Cactus plots for groups
     plot_cactus(
         records,
@@ -600,6 +619,19 @@ def main():
         category_key=lambda r: "cpsat" if r.get("solver", "").lower() in ("cp_sat", "cpsat") else ("cplex" if r.get("solver", "").lower() == "cplex" else f"sat ({r.get('solver')})"),
         title="Cactus Plot: Methods Comparison",
         base_filename="cactus_methods",
+        output_dirs=output_dirs,
+    )
+
+    plot_cactus(
+        records,
+        group_name="exact_solvers",
+        category_key=lambda r: (
+            f"SAT / {str(r.get('encoding') or r.get('config', {}).get('encoding') or 'order').title()}"
+            if str(r.get("solver", "")).lower() in ("cadical195", "glucose4", "maplechrono", "minisat22", "lingeling")
+            else str(r.get("solver", "unknown")).upper()
+        ),
+        title="Cactus Plot: Current Exact-Solver Comparison",
+        base_filename="cactus_exact_solvers",
         output_dirs=output_dirs,
     )
 
