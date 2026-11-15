@@ -52,11 +52,8 @@ CBMP/
 │   ├── configs.yaml        # Cấu hình các nhóm thực nghiệm (per_dataset, solvers, methods, ablation, encodings, exact_solvers)
 │   └── run_experiments.py # Trình điều khiển thực nghiệm (deduplication, resuming, canonical keys, runner)
 ├── analysis/
-│   ├── make_tables.py      # Sinh bảng LaTeX và CSV (ablation, solvers, methods)
-│   ├── make_plots.py       # Vẽ biểu đồ cactus, scatter, ablation
-│   ├── reference_tables.py # Trình thẩm định và xuất bảng đối chiếu công bố (Table 2 & Table 3)
-│   └── reference_data/
-│       └── published_tables.json # Dữ liệu chuẩn Table 2 & Table 3 từ tài liệu công bố
+│   ├── make_tables.py      # Sinh bảng CSV/LaTeX từ results/runs.jsonl
+│   └── make_plots.py       # Sinh cactus plots và CNSPlots encoding comparison
 ├── datasets/               # Thư mục chứa ma trận đồ thị MatrixMarket (.mtx)
 ├── scripts/
 │   ├── check_datasets.py   # Kiểm tra và cảnh báo nếu dataset trong config bị thiếu
@@ -64,8 +61,8 @@ CBMP/
 │   └── make_subgraphs.py   # Tạo các đồ thị con cảm ứng liên thông
 ├── tests/                  # Bộ test tự động (brute force, baselines, mocked CP/Gurobi, encodings)
 ├── results/                # Snapshot hiện hành: runs.jsonl, env.json, tables/, figures/
-├── docs/                   # Provenance, raw archives và phase C/D report evidence
-├── report/                 # Báo cáo khoa học LaTeX & hình ảnh được chọn
+├── docs/                   # Provenance của snapshot hiện tại
+├── report/                 # Báo cáo khoa học LaTeX và template
 ├── requirements.txt
 ├── pytest.ini
 └── README.md
@@ -187,69 +184,50 @@ python experiments/run_experiments.py --group all --record-metadata
 
 ## 6. Sinh bảng biểu và đồ thị (Analysis & Visualization)
 
-Các script phân tích mặc định đọc từ `results/runs.jsonl` và xuất ra `results/tables/` cũng như `results/figures/`. Có thể tùy chỉnh thư mục đầu ra thông qua cờ `--output-dir`:
+Các bảng và đồ thị phải được sinh từ duy nhất `results/runs.jsonl`. Chạy:
 
 ```bash
-# Sinh các bảng tổng hợp LaTeX (.tex) và CSV (.csv) vào results/tables/
-python analysis/make_tables.py results/runs.jsonl
-# Hoặc chỉ định rõ thư mục xuất:
 python analysis/make_tables.py results/runs.jsonl --output-dir results/tables
-
-# Sinh các biểu đồ cactus, scatter, ablation vào results/figures/
-python analysis/make_plots.py results/runs.jsonl
-# Hoặc chỉ định rõ thư mục xuất:
 python analysis/make_plots.py results/runs.jsonl --output-dir results/figures
 ```
 
-- Bảng `table_ablation_small` & `table_ablation_medium`: Đánh giá tác động của phá đối xứng quay, đối xứng gương và heuristic khởi tạo (tách riêng đồ thị nhỏ và trung bình).
-- Bảng `table_ablation_family`: Đánh giá phân phối tỷ lệ thời gian giữa các biến thể trên họ các đồ thị hoán vị nhãn ngẫu nhiên (seeds), cung cấp median tỷ lệ thời gian, IQR (25-75%), min-max, và tỷ lệ số cặp nhanh hơn.
-- Bảng `table_ablation_family_per_graph`: Chi tiết các so sánh cặp trên từng đồ thị con họ bus ($N=40, 50$).
-- Bảng `table_ablation_phases`: Phân tích thời gian giải theo từng giai đoạn (vòng SAT cuối cùng `last_iter_time` vs các vòng trước `prev_iters_time`), phân tách theo $N=40$ và $N=50$.
-- Bảng `table_solvers_small` & `table_solvers_medium`: So sánh thời gian và tỷ lệ giải được của 5 solver SAT trên đồ thị nhỏ và trung bình.
-  - *Ghi chú cho `table_solvers_small`*: Mỗi dataset được chạy trên 5 hoán vị nhãn ngẫu nhiên (`relabel_seeds` 0..4). Thời gian giải được gộp theo trung vị (**median**); điểm PAR2 được tính theo trung bình cộng (**mean**) trên 5 seed.
-- Bảng `table_methods`: So sánh SAT với CP-SAT và CPLEX trên 7 instance (nhỏ + trung bình). Trường hợp CPLEX chạm ngưỡng Community Edition (<= 1000 biến/ràng buộc) được đánh dấu riêng bằng mã **SL** (Size Limit), tách biệt khỏi PAR2 và được chú thích dưới bảng.
-  - *Quy tắc Speedup & Mean time*: Tốc độ tăng trung bình nhân (Speedup) chỉ tính trên các instance mà baseline $\ge 0.1\text{s}$ (kèm hiển thị số instance đủ điều kiện, ví dụ `[5/7]`). Nếu solver/method chưa giải được hết các instance này thì ghi `-`. Nếu một method chưa giải hết toàn bộ instance trong bảng thì dòng "mean time" ghi `-`.
-- Bảng `table_methods_family`: So sánh hiệu năng giữa CP-SAT và SAT best trên 6 đồ thị có hoán vị nhãn ngẫu nhiên (seeds 0..4 và 0..2): median tỷ lệ thời gian `cpsat/sat`, min, max, và số cặp CP-SAT nhanh hơn / tổng số cặp.
-- Bảng `table_methods_large`: So sánh CP-SAT và SAT best trên các đồ thị lớn ($N \ge 80$, nhãn gốc). Lưu ý rằng SAT không sinh cận dưới solver; cận dưới của SAT dựa trên lý thuyết đồ thị $LB_{\text{degree}} = \lceil \Delta/2 \rceil$. CP-SAT cung cấp cận dưới thô từ solver `cpsat_solver_lb` ($\lceil \text{BestObjectiveBound} \rceil$), và cận dưới kết hợp $LB_{\text{combined}} = \max(LB_{\text{degree}}, \text{cpsat\_solver\_lb})$.
-- Bảng `table_per_dataset`: Tổng hợp kết quả SAT best (CaDiCaL 195) trên toàn bộ 16 dataset MatrixMarket. Ghi rõ SAT không sinh cận dưới solver (`lb_solver` ghi `-`), cận dưới dựa trên bậc cực đại $LB_{\text{degree}} = \lceil \Delta/2 \rceil$, và cột `ub_minus_lb` (chỉ là hiệu cận trên và cận dưới đồ thị yếu, không phải khoảng cách tới tối ưu).
-- Bảng `cross_validation.csv`: Đối chiếu nghiệm tối ưu `best_ub` giữa tất cả solver/method cùng đạt trạng thái OPTIMAL trên cùng dataset/seed (cột `relabel_seed` kiểu Int64, để trống cho nhãn gốc). Báo lỗi và dừng nếu phát hiện mâu thuẫn hoặc nghiệm incumbent không hợp lệ (< opt).
+Các bảng của snapshot hiện tại:
+
+- `table_encoding_comparison.csv`: kết quả theo từng dataset của Order và Pairwise Encoding, lấy SAT records từ cả hai group `encodings` và `exact_solvers`.
+- `table_encoding_comparison_pairs.csv`: đối chiếu cặp Order/Pairwise; chỉ tính runtime ratio khi hai encoding chứng minh cùng optimum.
+- `table_exact_solvers.csv`: từng run trong nhóm `exact_solvers`, giữ riêng `OPTIMAL`, `FEASIBLE`, `SIZE_LIMIT`, và `UNAVAILABLE`.
+- `table_methods.csv`: bảng tổng hợp các phương pháp giải chính xác.
+- `table_solvers_medium.csv`: kết quả 5 SAT solvers trên bốn medium subgraphs.
+
+Các lần chạy hiện tại chưa có dữ liệu cho ablation, randomized-label family, phase decomposition, small-solver comparison, hay SAT-vs-CP-SAT trên full-size graphs. Script phân tích có thể hỗ trợ các nhóm này khi có record tương ứng, nhưng không được xem file output cũ hoặc cấu hình trong YAML là bằng chứng rằng nhóm đã chạy.
+
+`make_plots.py` dùng CNSPlots để tạo hình so sánh Order/Pairwise từ các nghiệm `OPTIMAL` hợp lệ; đồng thời tạo cactus plot cho nhóm medium và exact solvers nếu có dữ liệu phù hợp. Không tái sử dụng hình không được sinh từ snapshot hiện tại.
 
 ---
 
-## 7. Trạng thái và quy ước kết quả (Results & Provenance)
+## 7. Trạng thái kết quả hiện tại (Current Results)
 
-Repository chỉ sử dụng **một thư mục kết quả hiện hành: results/**:
+Nguồn dữ liệu mới nhất được theo dõi trong nhánh này là:
 
-- results/runs.jsonl: raw records của snapshot hiện hành.
-- results/env.json: metadata môi trường và commit nguồn tương ứng.
-- results/tables/: bảng CSV/LaTeX được sinh từ raw records.
-- results/figures/: biểu đồ được sinh từ raw records.
+- `results/runs.jsonl`: 44 record duy nhất.
+- `results/env.json`: metadata môi trường của snapshot.
+- `results/tables/`: bảng được tạo từ raw records hiện tại.
+- `results/figures/`: hình được tạo từ raw records hiện tại bằng `analysis/make_plots.py`.
 
-Snapshot đang được lưu có 44 records: 24 OPTIMAL, 12 TIMEOUT, 4 UNAVAILABLE, 3 SIZE_LIMIT và 1 FEASIBLE; thuộc ba nhóm `encodings` (4), `exact_solvers` (24) và `solvers_medium` (20). Đây là thống kê của snapshot tại thời điểm ghi trong `results/env.json`, không phải cam kết số lượng bất biến. Metadata ghi nhận source commit `41271c4119a306ace4b42e734093ea773ab30bc2-dirty`; do đó snapshot là exploratory archive, không phải benchmark được tái lập từ source commit sạch. Xem `docs/EXPERIMENT_PROVENANCE.md` và `docs/REPORT_ARTIFACTS.md` trước khi sử dụng số liệu trong report. **Các bảng trong `results/tables/` là output phân tích snapshot hiện hành, không phải nguồn của các bảng LaTeX đang trình bày trong report.**
+Thành phần 44 record: **24 OPTIMAL, 12 TIMEOUT, 4 UNAVAILABLE, 3 SIZE_LIMIT, 1 FEASIBLE**. Group memberships là `exact_solvers` (24), `solvers_medium` (20), và `encodings` (4); các group có overlap nên không cộng số lượng memberships để tính số record duy nhất.
 
-Không tạo thêm results_v2/, results/pilot/ hoặc results/final/. Khi chạy tiếp, dùng cùng results/; runner hỗ trợ resume và kiểm tra commit để tránh trộn dữ liệu không tương thích.
+Tám dataset có kết quả trong snapshot: `14_bus`, `30_bus`, `494_bus_n40`, `662_bus_n40`, `494_bus_n60`, `662_bus_n60`, `494_bus_n80`, và `662_bus_n80`. Mỗi dataset/formulation chỉ có một run; không báo cáo median, confidence interval, hay significance test từ các record đơn lẻ.
 
-### Dữ liệu lịch sử trong docs/
+**Giới hạn phạm vi hiện tại:** các full matrices `494_bus` và `662_bus` có trong `datasets/` nhưng chưa có run trong snapshot mới nhất. Vì vậy chưa thể kết luận khả năng mở rộng trên full-size graphs từ kết quả hiện có. Gurobi được ghi là `UNAVAILABLE`; CPLEX MIP bị `SIZE_LIMIT` trên ba trong bốn instance; một run CPLEX CP chỉ đạt `FEASIBLE`, chưa chứng minh tối ưu.
 
-- `docs/data/`: hai raw archives lịch sử (`runs.jsonl`, `runs_ablation.jsonl`) và metadata tương ứng; không phải nguồn mặc định của runner.
-- `docs/phaseC/` và `docs/phaseD/`: các bảng và cross-validation lịch sử được dùng làm bằng chứng nguồn cho các bảng định lượng trong report. Đây là hai snapshot nghiên cứu độc lập, không được tự động gộp.
-- Artifacts của phase A/A2/B, pilot và calibration đã được loại khỏi nhánh này; không trích dẫn chúng như các file còn tồn tại. Các kết luận lịch sử từng dựa trên artifacts đó không còn dữ liệu nguồn kèm theo trong nhánh này.
+## 7.1 Cập nhật kết quả
 
-### Quy trình cập nhật snapshot
+1. Chạy các nhóm cần thiết trong `experiments/configs.yaml`.
+2. Ghi metadata bằng `--record-metadata`.
+3. Kiểm tra trạng thái và nghiệm trong `results/runs.jsonl`.
+4. Sinh lại bảng và hình từ chính file raw mới nhất.
+5. Không giữ file bảng/hình cũ khi raw input đã thay đổi; kiểm tra chúng có tương ứng với dữ liệu mới trước khi commit.
 
-1. Commit mã nguồn sạch trước khi chạy benchmark.
-2. Chạy các nhóm cần thiết với --record-metadata và output mặc định results/.
-3. Resume chỉ khi runner xác nhận commit tương thích; không dùng --force-resume để trộn kết quả khác source nếu chưa có lý do và hồ sơ giải trình.
-4. Kiểm tra JSONL, metadata, trạng thái solver và nghiệm bằng validation độc lập.
-5. Sinh lại bảng và biểu đồ từ đúng results/runs.jsonl:
-
-```bash
-python analysis/make_tables.py results/runs.jsonl --output-dir results/tables
-python analysis/make_plots.py results/runs.jsonl --output-dir results/figures
-```
-
-6. Nếu metadata ghi nhận dirty source, giữ nhãn exploratory; không tuyên bố reproducible/final.
-7. Không chép trực tiếp bảng `results/tables/` vào report nếu chưa cập nhật provenance và xác minh cùng phạm vi dữ liệu. Bản đồ nguồn từng bảng/hình trong report nằm tại `docs/REPORT_ARTIFACTS.md`.
 ## 8. Chạy kiểm thử tự động (Running Tests)
 
 Toàn bộ các thuật toán và mô hình được kiểm thử tự động bằng `pytest`:
@@ -287,10 +265,7 @@ Kết quả biên dịch là `report/report.pdf`. Số trang phụ thuộc nội
 
 ---
 
-## 10. Tài liệu và provenance
+## 10. Provenance
 
-- `docs/EXPERIMENT_PROVENANCE.md` ánh xạ raw archives, các phase còn được lưu và snapshot hiện hành.
-- `docs/REPORT_ARTIFACTS.md` ánh xạ từng bảng/hình trong report tới nguồn dữ liệu; phân biệt report assets lịch sử với output `results/` hiện hành.
-- `docs/README.md` mô tả phạm vi tài liệu còn được lưu và quy tắc provenance.
+`docs/EXPERIMENT_PROVENANCE.md` mô tả duy nhất snapshot kết quả hiện tại, cấu hình thí nghiệm có record, và giới hạn độ bao phủ. Nhánh này không lưu các phase archive hoặc các bản raw results lịch sử.
 
-**Quy tắc nguồn dữ liệu:** `results/runs.jsonl` cùng `results/env.json` là snapshot hiện hành duy nhất. Dữ liệu dưới `docs/` chỉ là archive; không tự động nối, ghi đè hoặc dùng làm đầu vào mặc định cho pipeline hiện hành.
