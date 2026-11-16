@@ -19,6 +19,9 @@ CBMP/
 *.synctex.gz
 *.pdf
 
+*.bbl
+*.blg
+
 # Local references and temporary experiment outputs
 ref/
 results/smoke/
