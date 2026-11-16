@@ -1,0 +1,10 @@
+Graph type,Num.,NILS/TSCB +,NILS/TSCB *,NILS/TSCB −,NILS/ITPS +,NILS/ITPS *,NILS/ITPS −
+path,15,8,7,0,5,10,0
+cycle,15,5,10,0,10,5,0
+mesh2D,15,8,7,0,10,5,0
+mesh3D,10,10,0,0,7,3,0
+tree,12,4,8,0,1,11,0
+caterpillar,15,6,9,0,3,12,0
+hypercube,3,2,1,0,3,0,0
+Harwell-Boeing,28,15,13,0,11,17,0
+Total,185,58,55,0,50,63,0
