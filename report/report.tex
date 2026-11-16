@@ -44,6 +44,55 @@
 \maketitle
 
 % Main text
+\section{Introduction}
+The Bandwidth Minimization Problem (BMP) is a well-known combinatorial optimization problem in graph theory that seeks to assign labels to the vertices of a graph such that the maximum difference between the labels of adjacent vertices is minimized \cite{wang:hal-01166658}. This problem has attracted considerable attention due to its theoretical significance and its applications in areas such as data storage, network survivability, industrial electromagnetic, saving large hypertext media \cite{wang:hal-01166658}, finite element methods, large-scale power transmission systems, circuit design, chemical kinetics, numerical geophysics \cite{PINANA2004200}.
+
+A natural extension of BMP is the Cyclic Bandwidth Minimization Problem (CBMP), in which each label is assigned to vertices of a cyclic graph. While CBMP shares many similarities with BMP, the cyclic nature of the labeling introduces additional complexities that distinguish it from the classical problem and require specialized solution techniques. Over the years, researchers have proposed various approaches to solve BMP and CBMP. Early studies focused on finding exact bandwidths or lower bounds for general graphs. Eventually, exact algorithms were developed that include the implementation of branch-and-bound \cite{10.1007/978-3-642-37798-3_13}, the obtaining of lower bounds using distance- and degree-related parameters \cite{ZHOU2000357}, or the derivation of sharp upper-bounds by adding new edges \cite{CHAN2008131}. Using these theoretical studies, practical solutions like tabu search \cite{RODRIGUEZTELLO201517} and iterated three-phases search (ITPS) \cite{REN765302} have been proposed and proven to be state-of-the-art for solving CBMP.
+% Exact algorithms, including branch-and-bound methods and integer programming formulations, can produce optimal solutions but often suffer from high computational costs due to the combinatorial explosion of the search space. Consequently, numerous heuristic and metaheuristic approaches, such as genetic algorithms, tabu search, variable neighborhood search, and ant colony optimization, have been developed to obtain high-quality solutions within reasonable computational times. Although these methods have demonstrated promising performance, they may not always guarantee optimality.
+
+In this report, we want to investigate and contribute another solution to solve CBMP - Iterative Boolean Satisfiability for decreasing upper bound. We will first lay out how the problem can be represented as a satisfiability problem and how to encode them. Secondly, we will present how to lower the upper bound through implementations of iterative SAT. Finally we will assess its performance of the proposed algorithm by running it through benchmark instances and make comparisons with tabu search and ITPS.
+
+The remainder of the paper is written as follows. In Section 2, we give a formal definition on CBMP and SAT. In Section 3, we explore several algorithm based on iterative SAT to approach said problem. In Section 4, we report experimental setups, results and comparisons between different datasets, solvers and solutions. Conclusions are then drawn in Section 5.
+
+% Among exact solution approaches, Boolean Satisfiability (SAT) solving has emerged as a powerful alternative for tackling difficult combinatorial optimization problems. Advances in modern SAT solvers, including conflict-driven clause learning, efficient branching heuristics, and sophisticated preprocessing techniques, have significantly improved their ability to handle large and complex problem instances. By encoding CBMP as a satisfiability problem, the extensive capabilities of state-of-the-art SAT solvers can be leveraged to explore the solution space efficiently and potentially overcome some of the scalability limitations associated with traditional exact methods. This makes SAT-based approaches an attractive direction for solving CBMP.
+
+% The importance of CBMP extends beyond theoretical graph optimization. In practice, cyclic arrangements naturally arise in applications such as cyclic scheduling, communication network design, round-robin tournament organization, production planning, and the placement of components in ring-based architectures. For example, minimizing cyclic distances between strongly connected entities can improve communication efficiency, reduce transmission delays, and optimize resource utilization. As systems become increasingly complex, effective methods for solving CBMP can contribute to more efficient designs and improved operational performance across a wide range of domains.
+
+\section{Background}
+
+    \subsection{Problem Definition}
+    Let $G(V,E)$ be a finite undirected graph with vertex set $V$ of size $n$, $C_n$ be a cyclic graph with $n$ vertices and an embedding (also called labelling or arrangement) $\varphi$ of $G$ in $C_n$ be one-on-one mapping from $V$ to $V$. The cyclic bandwidth is then given as:
+    \begin{center}
+        $C_b(G, \varphi) = \max\limits_{(u,v)\in E}{|\varphi(u)-\varphi(v)|_n}$
+    \end{center}
+    with $\varphi(u)$ being a label assigned to vertex $u$ and $|x|_n$ equaling the minimum cycle distance, or $min(|x|, n-|x|)$.
+
+    The Cyclic Bandwidth Minimization Problem (CBMP)'s objective is to find an embedding $\varphi^* \in Q$ that minimizes the cyclic bandwidth of the graph, where $Q$ is the set of all possible labellings.
+
+    \begin{figure}
+        \centering
+        \includegraphics[width=0.8\linewidth]{figs/fig2.1.png}
+        \caption{An example illustrating the problem. (a) contains a finite undirected graphs with vertices from $a$ to $j$ and a labelling to those vertices. (b) contains a cycle graph that has said vertices embedded in and arranged in a clockwise order. The cyclic bandwidth of this embedding $C_b(G,\varphi)$ equals to 4, defined by the edges $(d, e), (e, g)$ and $(i,j)$}
+        \label{fig:2.1}
+    \end{figure}
+    \subsection{Boolean Satisfaction}
+    Boolean satisfiability problem, also commonly known as SAT, is a fundamental problem in logic and computer science. It asks whether there exists an assignment of True or False to a Boolean formula's variables to make said formula evaluate to True, in which case the formula is considered to be \textit{satisfiable}. These formulas are built from variables and operators (containing AND, OR, NOT and more) and often written in conjuctive normal form (CNF) - conjuction of several clauses, which are disjunction of literals.
+\begin{itemize}
+    \item \textbf{INPUT:} A propositional logic formula, represented in the form of conjunctive normal form.
+    \item \textbf{OUTPUT:}
+    \begin{itemize}
+        \item \textit{SAT} if there exists an assignment of truth values for each literals of the formula so that the original CNF become true.
+        \item \textit{UNSAT} if for all possible assignments of truth values for each literals of the formula, it always become false.
+    \end{itemize}
+\end{itemize}
+
+For example:
+\begin{center}
+    \(\displaystyle F_1 = \neg x_1\wedge x_2\)
+    \\*
+    \(\displaystyle F_2 = \neg x_1 \wedge x_1\)
+\end{center}
+The formula $F_1$ becomes true with $x_1$ = false, $x_2$ = true, therefore $F_1$ is SAT. On the other hand, $F_2$ is always false, irrespective of any possible $(x_1, x_2)$ combination, thus making it UNSAT.
 \section{Method}
 
     \subsection{Label assignment constraint}
@@ -207,5 +256,11 @@
                 \State \textbf{return} $A$, $\text{UB}$
             \end{algorithmic}
         \end{algorithm}
-    
+
+
+\bibliographystyle{elsarticle-num}
+\nocite{*}
+
+\bibliography{references}
+
 \end{document}
