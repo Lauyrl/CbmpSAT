@@ -50,15 +50,34 @@ def biconditional_X_and_G(N, X, G):
 
 
 # === injectivity and surjectivity X
-def injectivity_surjectivity_X(N, X, a_base):
+def injectivity_surjectivity_X(N, X, a_base, encoding="product"):
     """
     x_u != x_v: X[u][i] -> -X[v][i] == -X[u][i] or -X[v][i]  ==  -X[v][i] or -X[u][i] == X[v][i] -> -X[u][i]  
     """
     clauses = []
     for i in range(N):
-        new_clauses, a_base = exactly_one_commander([X[u][i] for u in range(N)], a_base)
+        new_clauses, a_base = exactly_one([X[u][i] for u in range(N)], a_base, encoding)
         clauses.extend(new_clauses)
     return clauses, a_base
+
+
+def direct_cyclic_edge(N, X, u, v, upper_bound):
+    """Forbid label pairs whose cyclic distance is at least ``upper_bound``."""
+    return [
+        [-X[u][left], -X[v][right]]
+        for left in range(N)
+        for right in range(N)
+        if min(abs(left - right), N - abs(left - right)) >= upper_bound
+    ]
+
+
+def direct_edge_clause_count(N, upper_bound):
+    """Return the exact number of clauses emitted by ``direct_cyclic_edge``."""
+    return sum(
+        min(abs(left - right), N - abs(left - right)) >= upper_bound
+        for left in range(N)
+        for right in range(N)
+    )
 
 
 # === cyclic edges
@@ -111,6 +130,12 @@ def break_reflection_symmetry(N, X, G):
         clauses.append([-X[N-1][i], -G[1][i]])
 
     return clauses
+
+
+def break_reflection_symmetry_direct(N, X):
+    """Direct-encoding version of ``f(1) < f(N - 1)``."""
+    return [[-X[N - 1][right], -X[1][left]]
+            for right in range(N) for left in range(right, N)]
 
 
 # ===================================== UNUSUED ========================================

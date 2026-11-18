@@ -3,6 +3,47 @@ import math
 # ================= COMMANDER
 GROUP_WIDTH = 3
 
+
+def exactly_one_pairwise(literals, next_var):
+    """Exactly one literal is true, using the standard quadratic AMO."""
+    clauses = [list(literals)]
+    for index, left in enumerate(literals):
+        for right in literals[index + 1:]:
+            clauses.append([-left, -right])
+    return clauses, next_var
+
+
+def exactly_one_product(literals, next_var):
+    """Exactly one literal is true via a two-dimensional product AMO."""
+    count = len(literals)
+    if count <= 3:
+        return exactly_one_pairwise(literals, next_var)
+
+    rows = math.ceil(math.sqrt(count))
+    columns = math.ceil(count / rows)
+    row_vars = list(range(next_var, next_var + rows))
+    col_vars = list(range(next_var + rows, next_var + rows + columns))
+    clauses = [list(literals)]
+
+    for index, literal in enumerate(literals):
+        clauses.append([-literal, row_vars[index // columns]])
+        clauses.append([-literal, col_vars[index % columns]])
+    for group in (row_vars, col_vars):
+        for index, left in enumerate(group):
+            for right in group[index + 1:]:
+                clauses.append([-left, -right])
+    return clauses, next_var + rows + columns
+
+
+def exactly_one(literals, next_var, encoding="product"):
+    if encoding == "pairwise":
+        return exactly_one_pairwise(literals, next_var)
+    if encoding == "product":
+        return exactly_one_product(literals, next_var)
+    if encoding == "commander":
+        return exactly_one_commander(literals, next_var)
+    raise ValueError(f"unknown exactly-one encoding: {encoding}")
+
 def exactly_one_commander(X, a_base):
     """
     Integrate ALO shortcut by enforcing it upon the top-level commanders and letting logic propagate downwards

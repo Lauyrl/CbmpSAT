@@ -1,3 +1,5 @@
 python-sat
 scipy
 numpy
+matplotlib
+ortools
