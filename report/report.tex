@@ -1,7 +1,10 @@
-\documentclass[a4paper]{cas-sc}
+\PassOptionsToPackage{expansion=false}{microtype}
+\PassOptionsToPackage{numbers}{natbib}
 
-\usepackage[authoryear,longnamesfirst]{natbib}
+\documentclass[a4paper,fleqn]{cas-sc}
+
 \usepackage[utf8]{inputenc}
+\usepackage[numbers]{natbib}
 \usepackage{enumitem}
 \usepackage{graphicx}
 \usepackage{amsmath}
@@ -35,7 +38,7 @@
 % Main title of the paper
 \title [mode = title]{A SAT solving approach to the Cyclic Bandwidth Minimization Problem}  
 % Author
-\author{Student: Lê Nam Huy\\24021516}
+\author{Student: Lê Nam Huy-24021516}
 % Abstract
 \begin{abstract}
 ~
@@ -44,6 +47,58 @@
 \maketitle
 
 % Main text
+\section{Introduction}
+    The Bandwidth Minimization Problem (BMP) is a well-known combinatorial optimization problem in graph theory that seeks to assign labels to the vertices of a graph such that the maximum difference between the labels of adjacent vertices is minimized \cite{wang:hal-01166658}. This problem has attracted considerable attention due to its theoretical significance and its applications in areas such as data storage, network survivability, industrial electromagnetic, saving large hypertext media \cite{wang:hal-01166658}, finite element methods, large-scale power transmission systems, circuit design, chemical kinetics, numerical geophysics \cite{PINANA2004200}.
+
+    A natural extension of BMP is the Cyclic Bandwidth Minimization Problem (CBMP), in which each label is assigned to vertices of a cyclic graph. While CBMP shares many similarities with BMP, the cyclic nature of the labeling introduces additional complexities that distinguish it from the classical problem and require specialized solution techniques. Over the years, researchers have proposed various approaches to solve BMP and CBMP. Early studies focused on finding exact bandwidths or lower bounds for general graphs. Eventually, exact algorithms were developed that include the implementation of branch-and-bound \cite{10.1007/978-3-642-37798-3_13}, the obtaining of lower bounds using distance- and degree-related parameters \cite{ZHOU2000357}, or the derivation of sharp upper-bounds by adding new edges \cite{CHAN2008131}. Using these theoretical studies, practical solutions like tabu search \cite{RODRIGUEZTELLO201517} and iterated three-phases search (ITPS) \cite{REN765302} have been proposed and proven to be state-of-the-art for solving CBMP.
+    % Exact algorithms, including branch-and-bound methods and integer programming formulations, can produce optimal solutions but often suffer from high computational costs due to the combinatorial explosion of the search space. Consequently, numerous heuristic and metaheuristic approaches, such as genetic algorithms, tabu search, variable neighborhood search, and ant colony optimization, have been developed to obtain high-quality solutions within reasonable computational times. Although these methods have demonstrated promising performance, they may not always guarantee optimality.
+
+    In this report, we want to investigate and contribute another solution to solve CBMP - Iterative Boolean Satisfiability for decreasing upper bound. We will first lay out how the problem can be represented as a satisfiability problem and how to encode them. Secondly, we will present how to lower the upper bound through implementations of iterative SAT. Finally we will assess its performance of the proposed algorithm by running it through benchmark instances and make comparisons with tabu search and ITPS.
+
+    The remainder of the paper is written as follows. In Section 2, we give a formal definition on CBMP and SAT. In Section 3, we explore several algorithm based on iterative SAT to approach said problem. In Section 4, we report experimental setups, results and comparisons between different datasets, solvers and solutions. Conclusions are then drawn in Section 5.
+
+    % Among exact solution approaches, Boolean Satisfiability (SAT) solving has emerged as a powerful alternative for tackling difficult combinatorial optimization problems. Advances in modern SAT solvers, including conflict-driven clause learning, efficient branching heuristics, and sophisticated preprocessing techniques, have significantly improved their ability to handle large and complex problem instances. By encoding CBMP as a satisfiability problem, the extensive capabilities of state-of-the-art SAT solvers can be leveraged to explore the solution space efficiently and potentially overcome some of the scalability limitations associated with traditional exact methods. This makes SAT-based approaches an attractive direction for solving CBMP.
+
+    % The importance of CBMP extends beyond theoretical graph optimization. In practice, cyclic arrangements naturally arise in applications such as cyclic scheduling, communication network design, round-robin tournament organization, production planning, and the placement of components in ring-based architectures. For example, minimizing cyclic distances between strongly connected entities can improve communication efficiency, reduce transmission delays, and optimize resource utilization. As systems become increasingly complex, effective methods for solving CBMP can contribute to more efficient designs and improved operational performance across a wide range of domains.
+
+\section{Background}
+
+    \subsection{Problem Definition}
+        Let $G(V,E)$ be a finite undirected graph with vertex set $V$ of size $n$, $C_n$ be a cyclic graph with $n$ vertices and an embedding (also called labelling or arrangement) $\varphi$ of $G$ in $C_n$ be one-on-one mapping from $V$ to $V$. The cyclic bandwidth is then given as:
+        \begin{center}
+            $C_b(G, \varphi) = \max\limits_{(u,v)\in E}{|\varphi(u)-\varphi(v)|_n}$
+        \end{center}
+        with $\varphi(u)$ being a label assigned to vertex $u$ and $|x|_n$ equaling the minimum cycle distance, or $min(|x|, n-|x|)$.
+
+        The Cyclic Bandwidth Minimization Problem (CBMP)'s objective is to find an embedding $\varphi^* \in Q$ that minimizes the cyclic bandwidth of the graph, where $Q$ is the set of all possible labellings.
+
+        \begin{figure}
+            \centering
+            \includegraphics[width=0.8\linewidth]{figs/fig2.1.png}
+            \caption{An example illustrating the problem. (a) contains a finite undirected graphs with vertices from $a$ to $j$ and a labelling to those vertices. (b) contains a cycle graph that has said vertices embedded in and arranged in a clockwise order. The cyclic bandwidth of this embedding $C_b(G,\varphi)$ equals to 4, defined by the edges $(d, e), (e, g)$ and $(i,j)$}
+            \label{fig:2.1}
+        \end{figure}
+
+        \subsection{Boolean Satisfaction}
+            Boolean satisfiability problem, also commonly known as SAT, is a fundamental problem in logic and computer science. It asks whether there exists an assignment of True or False to a Boolean formula's variables to make said formula evaluate to True, in which case the formula is considered to be \textit{satisfiable}. These formulas are built from variables and operators (containing AND, OR, NOT and more) and often written in conjuctive normal form (CNF) - conjuction of several clauses, which are disjunction of literals.
+                        
+            \begin{itemize}
+                \item \textbf{INPUT:} A propositional logic formula, represented in the form of conjunctive normal form.
+                \item \textbf{OUTPUT:}
+                \begin{itemize}
+                    \item \textit{SAT} if there exists an assignment of truth values for each literals of the formula so that the original CNF become true.
+                    \item \textit{UNSAT} if for all possible assignments of truth values for each literals of the formula, it always become false.
+                \end{itemize}
+            \end{itemize}
+
+            For example:
+            \begin{center}
+                \(\displaystyle F_1 = \neg x_1\wedge x_2\)
+                \\*
+                \(\displaystyle F_2 = \neg x_1 \wedge x_1\)
+            \end{center}
+            The formula $F_1$ becomes true with $x_1$ = false, $x_2$ = true, therefore $F_1$ is SAT. On the other hand, $F_2$ is always false, irrespective of any possible $(x_1, x_2)$ combination, thus making it UNSAT.
+
 \section{Method}
 
     \subsection{Label assignment constraint}
@@ -88,6 +143,7 @@
         
         Let $a(u)=i$ and $a(v)=j$. In CBMP, labels lie on a circle and the distance between two labels is:
         \begin{equation}
+            \label{eq:cyclic_distance}
             d(i,j) = \min\bigl(|i-j|,\; N-|i-j|\bigr).
         \end{equation}
         An edge $(u,v)\in E$ satisfies the bandwidth constraint if $d(i,j) \le \text{UB}-1$ (equivalently, $d(i,j) < \text{UB}$). The general approach to encoding this constraint involves fixing one vertex's label and applying a \textbf{label range constraint} on the other vertex. Specifically, for each $i$, if $a(u)=i$, then $a(v) \in [i-\text{UB}+1,\, i+\text{UB}-1] \bmod N$.
@@ -207,5 +263,229 @@
                 \State \textbf{return} $A$, $\text{UB}$
             \end{algorithmic}
         \end{algorithm}
-    
+
+    \subsection{Symmetry Breaking Constraints}
+
+        \paragraph{Rotation Symmetry Breaking:}
+        To break the $N$-fold circular rotation symmetry, we fix an arbitrary anchor vertex (chosen as $v_0$) to label 0:
+        \begin{equation}
+            f(v_0) = 0 \iff [x_0^0].
+            \label{eq:sb_rotation}
+        \end{equation}
+        Since any valid layout can be rotated so that $v_0$ is at position 0 without altering the cyclic bandwidth, this unit clause eliminates $N - 1$ redundant rotations while preserving at least one optimal representative.
+
+        \paragraph{Reflection Symmetry Breaking:}
+        With $f(v_0) = 0$ fixed, the circle admits an isometric reflection $\sigma(k) = (N - k) \bmod N$, which leaves label 0 unchanged and reverses the orientation of all other vertices ($1 \le k \le N-1$).
+
+        For $N \ge 3$, vertices $v_1$ and $v_{N-1}$ are distinct. To break reflection symmetry, we enforce that $v_1$ is positioned before $v_{N-1}$ along the cycle:
+        \begin{equation}
+            f(v_1) < f(v_{N-1}).
+            \label{eq:sb_reflection_math}
+        \end{equation}
+        Because all vertex labels are distinct and $f(v_0) = 0$, both $f(v_1)$ and $f(v_{N-1})$ are strictly positive and distinct. In our order encoding, Eq.~(\ref{eq:sb_reflection_math}) is encoded by asserting that if $f(v_{N-1}) = i$, then $f(v_1) < i$, which is equivalent to $\neg g_1^i$:
+        \begin{equation}
+            x_{N-1}^i \implies \neg g_1^i \iff (\neg x_{N-1}^i \lor \neg g_1^i) \quad \forall i \in \{0, \dots, N-1\}.
+            \label{eq:sb_reflection_clauses}
+        \end{equation}
+        If $N < 3$, $v_1$ and $v_{N-1}$ coincide ($1 = 2 - 1$), which would lead to an unsatisfiable constraint $f(v_1) < f(v_1)$; our implementation guards against this by checking $N \ge 3$.
+
+        \subsection{Heuristic Initial Upper Bound}
+            To minimize the number of iterations required to reach the optimum, we seed the search with an initial upper bound obtained from the \textbf{Reverse Cuthill--McKee (RCM)} algorithm \citep{cuthill1969rcm}. RCM constructs a breadth-first search layout starting from a pseudo-peripheral vertex, which notoriously produces low envelope and bandwidth on sparse physical graphs.
+
+            The RCM layout is evaluated via Eq.~(\ref{eq:cyclic_distance}) to obtain an initial bandwidth $\text{UB}_{\text{rcm}}$. If the heuristic permutation is valid, we set $\text{UB} = \text{UB}_{\text{rcm}}$; otherwise, the search defaults to the trivial bound $\text{UB} = \lfloor N/2 \rfloor + 1$.
+
+
+\section{Experiments}
+
+    \subsection{Experimental Setup}
+
+        The current evaluation uses eight benchmark instances from the repository's MatrixMarket dataset collection: \texttt{14\_bus} ($N=14$), \texttt{30\_bus} ($N=30$), and connected induced subgraphs \texttt{494\_bus\_n40}, \texttt{662\_bus\_n40}, \texttt{494\_bus\_n60}, \texttt{662\_bus\_n60}, \texttt{494\_bus\_n80}, and \texttt{662\_bus\_n80}. The full \texttt{494\_bus} ($N=494$) and \texttt{662\_bus} ($N=662$) matrices are included in the repository but have no records in the current result snapshot.
+
+        The SAT experiments use PySAT with CaDiCaL~195. The Order and Pairwise distance encodings are run in \texttt{incremental} mode with the same symmetry-breaking constraints, RCM initial upper-bound heuristic, and Commander exactly-one strategy. The medium-instance solver comparison uses Order Encoding and the same SAT configuration for CaDiCaL~195, Glucose~4, MapleChrono, MiniSat~2.2, and Lingeling. The exact-solver comparison includes CP-SAT, CPLEX MIP, CPLEX CP Optimizer, and Gurobi. The time limit is 600 seconds.
+
+        The current snapshot contains 44 unique JSONL records: 24 \texttt{OPTIMAL}, 12 \texttt{TIMEOUT}, 4 \texttt{UNAVAILABLE}, 3 \texttt{SIZE\_LIMIT}, and 1 \texttt{FEASIBLE}. Four records are tagged as the standalone \texttt{encodings} group and are also members of \texttt{exact\_solvers}; group counts therefore overlap. Each dataset/configuration is represented by one run in this snapshot. Reported runtimes are per-run measurements, not repeated-run averages or statistical estimates.
+
+    \subsection{Pairwise Encoding vs. Order Encoding}
+
+        Table~\ref{tab:current_encoding_comparison} compares the two SAT encodings on four small instances. Every pair uses the same dataset, CaDiCaL~195, incremental solving, Commander EO, rotation and reflection symmetry breaking, and the RCM initial upper bound. All eight runs prove the same optimum for their corresponding graph.
+
+        \begin{center}
+        \captionof{table}{Current-snapshot comparison of Order and Pairwise Encoding.}
+        \label{tab:current_encoding_comparison}
+        \resizebox{\textwidth}{!}{%
+        \begin{tabular}{lrr|rrr|rrr|r}
+        \toprule
+        Dataset & $N$ & $|E|$ &
+        \multicolumn{3}{c|}{Order Encoding} &
+        \multicolumn{3}{c|}{Pairwise Encoding} &
+        Pairwise / Order \\
+        & & & Solve time (s) & Variables & Clauses &
+        Solve time (s) & Variables & Clauses & Runtime ratio \\
+        \midrule
+        \texttt{14\_bus} & 14 & 20 & 0.00022 & 504 & 2657 & 0.00045 & 392 & 7232 & 2.00\\
+        \texttt{30\_bus} & 30 & 39 & 0.04277 & 2310 & 14455 & 0.11332 & 1860 & 100276 & 2.65\\
+        \texttt{494\_bus\_n40} & 40 & 52 & 0.94773 & 4080 & 46361 & 0.92063 & 3280 & 492301 & 0.97\\
+        \texttt{662\_bus\_n40} & 40 & 50 & 0.87140 & 4080 & 35641 & 14.77033 & 3280 & 331821 & 16.95\\
+        \bottomrule
+        \end{tabular}%
+        }
+        \end{center}
+
+        Across the four paired instances, the geometric mean of the Pairwise-to-Order runtime ratios is 3.05. Order Encoding is faster on three instances, while Pairwise is slightly faster on \texttt{494\_bus\_n40}. The largest observed difference is on \texttt{662\_bus\_n40}, where Pairwise requires 16.95 times the Order solve time and generates substantially more clauses. These are single-run observations on four instances; they do not establish statistical significance or general performance dominance.
+
+        \paragraph{CNSPlots visualization.}
+        The analysis script uses the CNSPlots \texttt{boxplot} API to visualize validated optimal runtimes from both encodings. The figure is generated from the current records by \texttt{python analysis/make\_plots.py results/runs.jsonl} and saved under \texttt{results/figures/}. It is included when the generated file is present:
+        \IfFileExists{../results/figures/cnsplots_encoding_comparison.png}{
+        \begin{figure}[t]
+        \centering
+        \includegraphics[width=0.78\textwidth]{../results/figures/cnsplots_encoding_comparison}
+        \caption{CNSPlots comparison of the current validated OPTIMAL runtime observations for Pairwise and Order Encoding.}
+        \label{fig:current_encoding_cnsplots}
+        \end{figure}
+        }{}
+
+    \subsection{Exact-Solver Comparison}
+
+        The exact-solver experiment covers four small instances and six formulations: SAT with Order Encoding, SAT with Pairwise Encoding, CP-SAT, CPLEX MIP, CPLEX CP Optimizer, and Gurobi. Table~\ref{tab:current_exact_solvers} reports the status and solve time recorded for each available run.
+
+        \begin{center}
+        \captionof{table}{Current-snapshot exact-solver results.}
+        \label{tab:current_exact_solvers}
+        \resizebox{\textwidth}{!}{%
+        \begin{tabular}{lrrrrrr}
+        \toprule
+        Dataset & SAT / Order & SAT / Pairwise & CP-SAT & CPLEX MIP & CPLEX CP & Gurobi \\
+        \midrule
+        \texttt{14\_bus}
+        & \makecell{OPT\\0.0002 s}
+        & \makecell{OPT\\0.0004 s}
+        & \makecell{OPT\\0.0127 s}
+        & \makecell{OPT\\0.1028 s}
+        & \makecell{OPT\\0.0383 s}
+        & UNAVAILABLE \\
+
+        \texttt{30\_bus}
+        & \makecell{OPT\\0.0428 s}
+        & \makecell{OPT\\0.1133 s}
+        & \makecell{OPT\\0.0981 s}
+        & SIZE LIMIT
+        & \makecell{OPT\\0.1914 s}
+        & UNAVAILABLE \\
+
+        \texttt{494\_bus\_n40}
+        & \makecell{OPT\\0.9477 s}
+        & \makecell{OPT\\0.9206 s}
+        & \makecell{OPT\\1.0075 s}
+        & SIZE LIMIT
+        & \makecell{OPT\\38.5758 s}
+        & UNAVAILABLE \\
+
+        \texttt{662\_bus\_n40}
+        & \makecell{OPT\\0.8714 s}
+        & \makecell{OPT\\14.7703 s}
+        & \makecell{OPT\\0.7661 s}
+        & SIZE LIMIT
+        & \makecell{FEASIBLE\\UB=7, LB=4\\600.4 s wall}
+        & UNAVAILABLE \\
+        \bottomrule
+        \multicolumn{7}{l}{\footnotesize OPT: optimality proved; FEASIBLE: incumbent found but optimality not proved; SIZE LIMIT: solver model exceeds the available CPLEX edition limit.}\\
+        \multicolumn{7}{l}{\footnotesize UNAVAILABLE: the corresponding Gurobi solver was not available in the recorded environment. Times in OPT cells are solver solve times.}\\
+        \end{tabular}%
+        }
+        \end{center}
+
+        Both SAT encodings and CP-SAT prove optimality on all four instances. CPLEX MIP proves the optimum only on \texttt{14\_bus}; its other three runs terminate with \texttt{SIZE\_LIMIT}. CPLEX CP Optimizer proves optimality on three instances and returns a feasible incumbent with $UB=7$ and $LB=4$ on \texttt{662\_bus\_n40}. Gurobi is recorded as \texttt{UNAVAILABLE} on all four instances; this status is not a timeout and is not evidence of solver performance.
+
+    \subsection{SAT Solver Comparison on Medium Instances}
+
+        Table~\ref{tab:current_medium_solvers} reports the five SAT solvers on four medium subgraphs. For \texttt{OPTIMAL} runs, the cell shows the solver solve time. For \texttt{TIMEOUT} runs, it shows the best incumbent upper bound and the elapsed wall time, which is approximately the configured 600-second limit. A timeout incumbent is not a proof of optimality.
+
+        \begin{center}
+        \captionof{table}{Current-snapshot SAT solver comparison on medium instances.}
+        \label{tab:current_medium_solvers}
+        \resizebox{\textwidth}{!}{%
+        \begin{tabular}{lrrrrr}
+        \toprule
+        Dataset & CaDiCaL 195 & Glucose 4 & MapleChrono & MiniSat 2.2 & Lingeling \\
+        \midrule
+        \texttt{494\_bus\_n60}
+        & \makecell{OPT\\UB=7; 35.68 s}
+        & \makecell{TO\\UB=7; 600.4 s wall}
+        & \makecell{TO\\UB=7; 600.5 s wall}
+        & \makecell{TO\\UB=7; 600.5 s wall}
+        & \makecell{OPT\\UB=7; 227.03 s} \\
+
+        \texttt{662\_bus\_n60}
+        & \makecell{OPT\\UB=9; 15.84 s}
+        & \makecell{TO\\UB=9; 600.4 s wall}
+        & \makecell{OPT\\UB=9; 440.76 s}
+        & \makecell{TO\\UB=9; 600.5 s wall}
+        & \makecell{OPT\\UB=9; 163.26 s} \\
+
+        \texttt{494\_bus\_n80}
+        & \makecell{OPT\\UB=8; 140.59 s}
+        & \makecell{TO\\UB=9; 600.4 s wall}
+        & \makecell{TO\\UB=10; 600.4 s wall}
+        & \makecell{TO\\UB=9; 600.4 s wall}
+        & \makecell{TO\\UB=8; 600.4 s wall} \\
+
+        \texttt{662\_bus\_n80}
+        & \makecell{OPT\\UB=10; 54.79 s}
+        & \makecell{TO\\UB=11; 600.4 s wall}
+        & \makecell{TO\\UB=11; 600.4 s wall}
+        & \makecell{TO\\UB=11; 600.4 s wall}
+        & \makecell{OPT\\UB=10; 143.17 s} \\
+        \bottomrule
+        \multicolumn{6}{l}{\footnotesize OPT: optimality proved; TO: 600-second time limit reached. OPT cells report solver time; TO cells report process wall time. UB in TO cells is an incumbent only.}\\
+        \end{tabular}%
+        }
+        \end{center}
+
+        Across the 20 medium-instance runs, eight reach \texttt{OPTIMAL} and twelve reach \texttt{TIMEOUT}. CaDiCaL~195 proves optimality on all four instances; Lingeling on three; MapleChrono on one; Glucose~4 and MiniSat~2.2 do not prove optimality on any of the four. The number of instances and repetitions is limited, so this comparison should be interpreted as the observed outcome of the current batch rather than a general ranking of SAT solvers.
+
+    \subsection{Discussion and Limitations}
+
+        The current results support three conclusions. First, both Pairwise and Order Encoding are implemented and prove the same optimum on the four paired small instances. Second, the exact-solver results demonstrate agreement among SAT, CP-SAT, and the completed CPLEX runs where optimality is proved, while also exposing practical solver availability and model-size constraints. Third, the medium solver batch shows that the ability to find an incumbent does not imply that a solver proves optimality within the time limit.
+
+        The current result snapshot does not contain runs on the full \texttt{494\_bus} and \texttt{662\_bus} matrices, so large-matrix scalability is not yet demonstrated by these results. It also contains only one run per dataset/configuration; repeated trials and statistical summaries are not available. No current ablation, randomized-label family, or phase-decomposition records are included, so no claims about those experiments are made here.
+
+\section{Conclusion}
+
+    This repository implements CBMP solving with both Pairwise and Order SAT encodings, incremental SAT solving, Commander exactly-one constraints, and rotation/reflection symmetry breaking. The current snapshot records successful optimality proofs from both SAT encodings and CP-SAT on four small instances, together with a five-solver SAT comparison on four medium subgraphs. CPLEX MIP is limited by the available edition on three instances; CPLEX CP Optimizer has one feasible-but-unproven result; and Gurobi is unavailable in the recorded environment.
+
+    The full benchmark matrices are present in the repository, but the current snapshot does not yet include experiments on the $N=494$ and $N=662$ graphs. Future work should prioritize those large-instance runs and repeated trials before drawing stronger scalability or statistical conclusions.
+
+
+\bibliographystyle{elsarticle-num}
+\nocite{*}
+\bibliography{references}
+
+\section*{Data Availability}
+    The source code, current benchmark datasets, experiment configurations,
+    automated tests, analysis scripts, and report source are available at:
+    \url{https://github.com/datnk0116/CBMP/tree/final-2}.
+
+    The latest tracked raw experiment data are stored in
+    \texttt{results/runs.jsonl}, with environment metadata in
+    \texttt{results/env.json}. The snapshot contains 44 unique records:
+    24 \texttt{OPTIMAL}, 12 \texttt{TIMEOUT}, 4 \texttt{UNAVAILABLE},
+    3 \texttt{SIZE\_LIMIT}, and 1 \texttt{FEASIBLE}. The group memberships
+    \texttt{encodings}, \texttt{exact\_solvers}, and \texttt{solvers\_medium}
+    overlap and must not be summed as unique records.
+
+    Derived per-instance tables are stored in \texttt{results/tables/}.
+    The analysis scripts generate the current SAT-solver cactus plots and the
+    CNSPlots encoding figure in \texttt{results/figures/} from the same raw input.
+    The encoding figure is included in the paper only when it exists. To regenerate
+    the derived outputs, run:
+    \begin{verbatim}
+    python analysis/make_tables.py results/runs.jsonl --output-dir results/tables
+    python analysis/make_plots.py results/runs.jsonl --output-dir results/figures
+    \end{verbatim}
+
+    The repository includes CPLEX MIP, CPLEX CP Optimizer, and Gurobi
+    implementations. Their results are reported using their recorded solver
+    statuses; \texttt{UNAVAILABLE}, \texttt{SIZE\_LIMIT}, and \texttt{FEASIBLE}
+    are distinct outcomes and are not treated as timeouts or proven optima.
+
 \end{document}

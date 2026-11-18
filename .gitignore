@@ -1,7 +1,15 @@
-__pycache__/*
-.venv/*
-.vscode/*
-ref/*
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.DS_Store
+
+# Virtual environments and local IDE state
+.venv/
+CBMP/
+.vscode/
+
+# LaTeX build products
 *.aux
 *.log
 *.out
@@ -10,3 +18,24 @@ ref/*
 *.fdb_latexmk
 *.synctex.gz
 *.pdf
+
+*.bbl
+*.blg
+
+# Local references and temporary experiment outputs
+ref/
+results/smoke/
+calibration/
+pilot_ablation/
+analysis/tables/
+analysis/figures/
+
+# Editor and patch backups
+*.bak
+*~
+*.swp
+*.swo
+*.orig
+*.rej
+
+*.gz
