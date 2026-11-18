@@ -4,44 +4,44 @@ import math
 GROUP_WIDTH = 3
 
 
-def exactly_one_pairwise(literals, next_var):
+def exactly_one_pairwise(X, next_var):
     """Exactly one literal is true, using the standard quadratic AMO."""
-    clauses = [list(literals)]
-    for index, left in enumerate(literals):
-        for right in literals[index + 1:]:
-            clauses.append([-left, -right])
+    clauses = [list(X)]
+    for idx, lit in enumerate(X):
+        for other_lit in X[idx + 1:]:
+            clauses.append([-lit, -other_lit])
     return clauses, next_var
 
 
-def exactly_one_product(literals, next_var):
+def exactly_one_product(X, next_var):
     """Exactly one literal is true via a two-dimensional product AMO."""
-    count = len(literals)
+    count = len(X)
     if count <= 3:
-        return exactly_one_pairwise(literals, next_var)
+        return exactly_one_pairwise(X, next_var)
 
     rows = math.ceil(math.sqrt(count))
     columns = math.ceil(count / rows)
     row_vars = list(range(next_var, next_var + rows))
     col_vars = list(range(next_var + rows, next_var + rows + columns))
-    clauses = [list(literals)]
+    clauses = [list(X)]
 
-    for index, literal in enumerate(literals):
-        clauses.append([-literal, row_vars[index // columns]])
-        clauses.append([-literal, col_vars[index % columns]])
+    for idx, lit in enumerate(X):
+        clauses.append([-lit, row_vars[idx // columns]])
+        clauses.append([-lit, col_vars[idx % columns]])
     for group in (row_vars, col_vars):
-        for index, left in enumerate(group):
-            for right in group[index + 1:]:
-                clauses.append([-left, -right])
+        for idx, lit in enumerate(group):
+            for other_lit in group[idx + 1:]:
+                clauses.append([-lit, -other_lit])
     return clauses, next_var + rows + columns
 
 
-def exactly_one(literals, next_var, encoding="product"):
+def exactly_one(X, next_var, encoding="product"):
     if encoding == "pairwise":
-        return exactly_one_pairwise(literals, next_var)
+        return exactly_one_pairwise(X, next_var)
     if encoding == "product":
-        return exactly_one_product(literals, next_var)
+        return exactly_one_product(X, next_var)
     if encoding == "commander":
-        return exactly_one_commander(literals, next_var)
+        return exactly_one_commander(X, next_var)
     raise ValueError(f"unknown exactly-one encoding: {encoding}")
 
 def exactly_one_commander(X, a_base):
