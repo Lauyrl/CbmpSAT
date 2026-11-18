@@ -11,6 +11,7 @@ from __future__ import annotations
 import argparse
 import csv
 import math
+import os
 import re
 import shlex
 import shutil
@@ -234,7 +235,7 @@ def run_suite(manifest: list[dict[str, str]], args: argparse.Namespace) -> None:
         binary = getattr(args, option)
         if binary:
             resolved = Path(binary).expanduser().resolve()
-            if not resolved.is_file():
+            if not resolved.is_file() or not os.access(resolved, os.X_OK):
                 raise FileNotFoundError(f"--{option.replace('_', '-')} does not exist: {resolved}")
             setattr(args, option, str(resolved))
     if "TSCB" in args.algorithms:
@@ -247,7 +248,33 @@ def run_suite(manifest: list[dict[str, str]], args: argparse.Namespace) -> None:
             raise ValueError("--tscb-command is empty")
         tscb_executable = Path(tscb_parts[0]).expanduser()
         if tscb_executable.exists():
-            tscb_parts[0] = str(tscb_executable.resolve())
+            resolved = tscb_executable.resolve()
+            if not resolved.is_file() or not os.access(resolved, os.X_OK):
+                raise FileNotFoundError(f"TSCB executable is not runnable: {resolved}")
+            tscb_parts[0] = str(resolved)
+        else:
+            found = shutil.which(tscb_parts[0])
+            if not found:
+                raise FileNotFoundError(f"TSCB executable was not found: {tscb_parts[0]}")
+            tscb_parts[0] = found
+        template_values = {
+            "instance": "instance.rnd", "name": "instance", "seed": "0",
+            "rep": "0", "lower_bound": "1", "time_limit": "600",
+        }
+        try:
+            [part.format(**template_values) for part in tscb_parts]
+        except (KeyError, ValueError) as exc:
+            raise ValueError(f"Invalid placeholder in --tscb-command: {exc}") from exc
+        for option, pattern in (
+            ("--tscb-cost-regex", args.tscb_cost_regex),
+            ("--tscb-time-regex", args.tscb_time_regex),
+        ):
+            try:
+                compiled = re.compile(pattern)
+            except re.error as exc:
+                raise ValueError(f"Invalid {option}: {exc}") from exc
+            if compiled.groups < 1:
+                raise ValueError(f"{option} must contain a capture group for its value")
         args.tscb_command = shlex.join(tscb_parts)
 
     raw_path = Path(args.raw_csv).resolve()
@@ -569,6 +596,10 @@ def parse_args() -> argparse.Namespace:
     args = parser.parse_args()
     if args.reps <= 0 or args.time_limit <= 0:
         parser.error("--reps and --time-limit must be positive")
+    if args.timeout_grace < 0 or (args.limit is not None and args.limit <= 0):
+        parser.error("--timeout-grace must be non-negative and --limit must be positive")
+    if len(set(args.algorithms)) != len(args.algorithms):
+        parser.error("--algorithms cannot contain duplicates")
     return args
 
 

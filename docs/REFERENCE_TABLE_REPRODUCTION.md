@@ -11,15 +11,28 @@ python3 -m pip install scipy
 mkdir -p /tmp/cbmp-reference
 git clone https://github.com/thetopjiji/NILS.git /tmp/cbmp-reference/NILS
 git clone https://github.com/thetopjiji/ITPS.git /tmp/cbmp-reference/ITPS
-unzip -q /tmp/cbmp-reference/ITPS/instances.zip -d /tmp/cbmp-reference/instances
+unzip -q /tmp/cbmp-reference/ITPS/instances.zip -d /tmp/cbmp-reference
 g++ /tmp/cbmp-reference/NILS/BCP_main.cpp \
     /tmp/cbmp-reference/NILS/BCP_c_LS.cpp \
     /tmp/cbmp-reference/NILS/BCP_mem.cpp \
     /tmp/cbmp-reference/NILS/BCP_X.cpp \
     -O3 -lm -Wall -o /tmp/cbmp-reference/NILS/BCP_1
-g++ /tmp/cbmp-reference/ITPS/BCP_irace.cpp \
+python3 - <<'PY'
+from pathlib import Path
+
+source = Path("/tmp/cbmp-reference/ITPS/BCP_irace.cpp")
+compat = Path("/tmp/cbmp-reference/ITPS/BCP_irace_compat.cpp")
+compat.write_text(
+    "".join(line for line in source.read_text(encoding="utf-8").splitlines(True)
+            if line.strip() != "ç"),
+    encoding="utf-8",
+)
+PY
+g++ -std=c++98 /tmp/cbmp-reference/ITPS/BCP_irace_compat.cpp \
     -O3 -lm -Wall -o /tmp/cbmp-reference/ITPS/BCP
 ~~~
+
+Bản ITPS hiện có một dòng chứa ký tự lạc ç và tên biến toàn cục exchange xung đột với thư viện C++ mới. Đoạn trên tạo bản tương thích riêng để biên dịch, không sửa file nguồn đã clone.
 
 ## Chuẩn bị TSCB
 
