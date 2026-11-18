@@ -260,23 +260,111 @@ def run_external(method: str, instance: Instance, timeout: int) -> dict:
         return {"status": outcome, "best_ub": ub, "encoding_time": encoding_time,
                 "solve_time": solver.WallTime(), "variables": None, "clauses": None,
                 "message": status_name}
-    # Optional commercial backends are explicit about missing local licenses.
     if method == "CPLEX CP":
         try:
-            import docplex.cp.model  # noqa: F401
+            from docplex.cp.model import CpoModel, all_diff, integer_var_list, max as cp_max, min as cp_min, minimize
         except ImportError:
             return unavailable(method)
+        started = time.monotonic()
+        model = CpoModel()
+        positions = integer_var_list(instance.n, 0, instance.n - 1, "p")
+        model.add(all_diff(positions))
+        distances = [cp_min(abs(positions[u] - positions[v]), instance.n - abs(positions[u] - positions[v]))
+                     for u, v in instance.edges]
+        bandwidth = cp_max(distances)
+        model.add(minimize(bandwidth))
+        encoding_time = time.monotonic() - started
+        try:
+            solution = model.solve(TimeLimit=max(0.01, timeout - encoding_time), LogVerbosity="Quiet")
+        except Exception as error:
+            return {"status": "ERROR", "best_ub": None, "encoding_time": encoding_time,
+                    "solve_time": time.monotonic() - started - encoding_time, "variables": None, "clauses": None,
+                    "message": repr(error)}
+        state = str(solution.get_solve_status()).upper()
+        ub = int(solution.get_value(bandwidth)) if "FEASIBLE" in state or "OPTIMAL" in state else None
+        return {"status": "OPTIMAL" if "OPTIMAL" in state else "TIMEOUT" if ub is not None else "ERROR",
+                "best_ub": ub, "encoding_time": encoding_time,
+                "solve_time": time.monotonic() - started - encoding_time, "variables": None, "clauses": None,
+                "message": state}
     elif method == "CPLEX MIP":
         try:
-            import docplex.mp.model  # noqa: F401
+            from docplex.mp.model import Model
         except ImportError:
             return unavailable(method)
+        started = time.monotonic()
+        model = Model("cbmp")
+        n = instance.n
+        labels = model.binary_var_matrix(n, n, "x")
+        positions = model.integer_var_list(n, lb=0, ub=n - 1, name="p")
+        for vertex in range(n):
+            model.add(model.sum(labels[vertex, label] for label in range(n)) == 1)
+            model.add(positions[vertex] == model.sum(label * labels[vertex, label] for label in range(n)))
+        for label in range(n):
+            model.add(model.sum(labels[vertex, label] for vertex in range(n)) == 1)
+        bandwidth = model.integer_var(lb=0, ub=n // 2, name="bandwidth")
+        for edge, (u, v) in enumerate(instance.edges):
+            difference = model.integer_var(lb=0, ub=n - 1, name=f"d_{edge}")
+            direction = model.binary_var(name=f"sign_{edge}")
+            branch = model.binary_var(name=f"arc_{edge}")
+            model.add(difference >= positions[u] - positions[v])
+            model.add(difference >= positions[v] - positions[u])
+            model.add(difference <= positions[u] - positions[v] + n * direction)
+            model.add(difference <= positions[v] - positions[u] + n * (1 - direction))
+            model.add(bandwidth >= difference - n * branch)
+            model.add(bandwidth >= n - difference - n * (1 - branch))
+        model.minimize(bandwidth)
+        encoding_time = time.monotonic() - started
+        try:
+            solution = model.solve(log_output=False, TimeLimit=max(0.01, timeout - encoding_time))
+        except Exception as error:
+            return {"status": "ERROR", "best_ub": None, "encoding_time": encoding_time,
+                    "solve_time": time.monotonic() - started - encoding_time, "variables": None, "clauses": None,
+                    "message": repr(error)}
+        state = str(model.solve_details.status).upper()
+        ub = int(solution.get_value(bandwidth)) if solution else None
+        return {"status": "OPTIMAL" if "OPTIMAL" in state else "TIMEOUT" if ub is not None else "ERROR",
+                "best_ub": ub, "encoding_time": encoding_time,
+                "solve_time": model.solve_details.time, "variables": None, "clauses": None, "message": state}
     elif method == "Gurobi":
         try:
-            import gurobipy  # noqa: F401
+            import gurobipy as gp
         except ImportError:
             return unavailable(method)
-    return {**unavailable(method), "message": f"{method} is installed but has no configured adapter"}
+        started = time.monotonic()
+        try:
+            model = gp.Model("cbmp")
+            model.Params.OutputFlag = 0
+            n = instance.n
+            labels = model.addVars(n, n, vtype=gp.GRB.BINARY, name="x")
+            positions = model.addVars(n, vtype=gp.GRB.INTEGER, lb=0, ub=n - 1, name="p")
+            for vertex in range(n):
+                model.addConstr(labels.sum(vertex, "*") == 1)
+                model.addConstr(positions[vertex] == gp.quicksum(label * labels[vertex, label] for label in range(n)))
+            for label in range(n):
+                model.addConstr(labels.sum("*", label) == 1)
+            bandwidth = model.addVar(vtype=gp.GRB.INTEGER, lb=0, ub=n // 2, name="bandwidth")
+            for edge, (u, v) in enumerate(instance.edges):
+                delta = model.addVar(lb=-(n - 1), ub=n - 1, name=f"delta_{edge}")
+                difference = model.addVar(lb=0, ub=n - 1, name=f"d_{edge}")
+                complement = model.addVar(lb=1, ub=n, name=f"c_{edge}")
+                distance = model.addVar(lb=0, ub=n // 2, name=f"cd_{edge}")
+                model.addConstr(delta == positions[u] - positions[v])
+                model.addGenConstrAbs(difference, delta)
+                model.addConstr(complement == n - difference)
+                model.addGenConstrMin(distance, [difference, complement])
+                model.addConstr(bandwidth >= distance)
+            model.setObjective(bandwidth, gp.GRB.MINIMIZE)
+            encoding_time = time.monotonic() - started
+            model.Params.TimeLimit = max(0.01, timeout - encoding_time)
+            model.optimize()
+        except Exception as error:
+            return {"status": "ERROR", "best_ub": None, "encoding_time": time.monotonic() - started,
+                    "solve_time": 0.0, "variables": None, "clauses": None, "message": repr(error)}
+        ub = int(round(bandwidth.X)) if model.SolCount else None
+        outcome = "OPTIMAL" if model.Status == gp.GRB.OPTIMAL else "TIMEOUT" if ub is not None else "ERROR"
+        return {"status": outcome, "best_ub": ub, "encoding_time": encoding_time,
+                "solve_time": model.Runtime, "variables": None, "clauses": None, "message": str(model.Status)}
+    raise ValueError(f"unknown external method: {method}")
 
 
 def record_base(group: str, instance: Instance, method: str, result: dict, **settings) -> dict:
