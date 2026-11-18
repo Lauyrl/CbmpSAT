@@ -231,6 +231,10 @@ Kết quả biên dịch là `report/report.pdf`. Số trang phụ thuộc nội
 
 ---
 
+## Tái tạo Table 2 và Table 3 từ bài báo CBMP
+
+Runner riêng cho TSCB, ITPS và NILS nằm tại scripts/run_published_tables.py. Bộ dữ liệu, lệnh chạy, cách đối chiếu và giới hạn hiện tại được ghi trong docs/REFERENCE_TABLE_REPRODUCTION.md. Nguồn TSCB cũ cần được cung cấp riêng trước khi chạy đủ ba thuật toán.
+
 ## 10. Provenance
 
 `docs/EXPERIMENT_PROVENANCE.md` mô tả duy nhất snapshot kết quả hiện tại, cấu hình thí nghiệm có record, và giới hạn độ bao phủ. Nhánh này không lưu các phase archive hoặc các bản raw results lịch sử.
