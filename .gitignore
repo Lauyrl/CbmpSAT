@@ -39,3 +39,5 @@ analysis/figures/
 *.rej
 
 *.gz
+
+results_old/*

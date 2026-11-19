@@ -31,13 +31,18 @@ def read_lower_bounds(path: Path) -> dict[str, int]:
 def completed_keys(path: Path) -> set[str]:
     if not path.exists():
         return set()
-    return {json.loads(line)["key"] for line in path.read_text().splitlines() if line.strip()}
+    return {json.loads(line)["key"] for line in path.read_text().splitlines()
+            if line.strip() and json.loads(line)["status"] != "UNAVAILABLE" and json.loads(line)["status"] != "ERROR"}
 
 
 def write_record(path: Path, record: dict) -> None:
-    with path.open("a", encoding="utf8") as stream:
-        stream.write(json.dumps(record, default=str) + "\n")
-        stream.flush()
+    records = [json.loads(line) for line in path.read_text(encoding="utf8").splitlines()
+               if line.strip()] if path.exists() else []
+    records = [row for row in records if row["key"] != record["key"]]
+    records.append(record)
+    with path.open("w", encoding="utf8") as stream:
+        for row in records:
+            stream.write(json.dumps(row, default=str) + "\n")
 
 
 def export_csv(records_path: Path, output: Path) -> list[dict]:
