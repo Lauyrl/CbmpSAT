@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import time
 from pathlib import Path
 
 from cbmp import DATASETS, SatConfig, load_instance, solve_timed
@@ -80,17 +81,30 @@ def run_group(group: str, datasets: list[str], timeout: int, output: Path, force
     done = set() if force else completed_keys(records_path)
     lower_bounds = read_lower_bounds(DATASETS / "lb.csv")
 
+    jobs = group_jobs(group)
+    total = len(datasets) * len(jobs)
+    current = 0
+
     for name in datasets:
         instance = load_instance(name)
-        for method, config in group_jobs(group):
+        for method, config in jobs:
+            current += 1
             key = json.dumps([name, method, config], sort_keys=True)
+
             if key in done:
+                print(f"[{group}] [{current}/{total}] SKIP {name} / {method}", flush=True)
                 continue
+
+            print(f"[{group}] [{current}/{total}] START {name} / {method}", flush=True)
+            start = time.perf_counter()
 
             if method == "SAT" or group != "methods":
                 result = solve_timed(instance, sat_config(config), timeout).as_dict()
             else:
                 result = EXTERNAL_SOLVERS[method](instance, timeout)
+
+            elapsed = time.perf_counter() - start
+            print(f"[{group}] [{current}/{total}] DONE {name} / {method} ({elapsed:.1f}s)", flush=True)
 
             record = record_base(group, instance, method, result, lower_bounds,
                                  timeout_seconds=timeout, **config)
