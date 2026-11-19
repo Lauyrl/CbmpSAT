@@ -39,13 +39,15 @@ def plot_encoding(rows: list[dict], directory: Path) -> None:
     for method, style in (("direct", "o-"), ("order", "s-")):
         points = sorted((row["n"], row["clauses"] / row["edges"]) for row in rows
                         if row["method"] == method and row["exactly_one"] == "product"
-                        and row["status"] != "ENCODING_FAILED")
+                        and row["status"] != "ENCODING_FAILED"
+                        and row["clauses"] is not None and row["edges"] > 0)
         if points:
             axis.plot(*zip(*points), style, label=f"{method} measured")
 
     analytical = sorted((row["n"], row["clauses"] / row["edges"]) for row in rows
                         if row["method"] == "direct" and row["exactly_one"] == "product"
-                        and row["status"] == "ENCODING_FAILED")
+                        and row["status"] == "ENCODING_FAILED"
+                        and row["clauses"] is not None and row["edges"] > 0)
     if analytical:
         axis.plot(*zip(*analytical), "k--", label="direct analytical")
 

@@ -3,3 +3,6 @@ scipy
 numpy
 matplotlib
 ortools
+docplex
+cplex
+gurobipy

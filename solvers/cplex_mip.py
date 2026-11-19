@@ -39,7 +39,8 @@ def solve(instance, timeout: int) -> dict:
     model.minimize(bandwidth)
     encoding_time = time.monotonic() - started
     try:
-        solution = model.solve(log_output=False, TimeLimit=max(0.01, timeout - encoding_time))
+        model.parameters.timelimit = max(0.01, timeout - encoding_time)
+        solution = model.solve(log_output=False)
     except Exception as error:
         return {
             "status": "ERROR",
