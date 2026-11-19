@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Callable, Iterable
 
 import numpy as np
-from pysat.solvers import Cadical195
+from pysat.solvers import Glucose4, Cadical195
 from scipy.io import mmread
 from scipy.sparse.csgraph import reverse_cuthill_mckee
 
@@ -63,7 +63,9 @@ class SatResult:
 
 
 def load_instance(name: str) -> Instance:
-    graph = mmread(find_instance_path(DATASETS, name)).tocsr()
+    matrix = mmread(find_instance_path(DATASETS, name)).tocsr()
+    pattern = (matrix != 0).astype(np.int8)
+    graph = ((pattern + pattern.T) != 0).astype(np.int8).tocsr()
     rows, cols = graph.nonzero()
     edges = [(int(u), int(v)) for u, v in zip(rows, cols) if u < v]
     return Instance(name, graph.shape[0], edges, graph)
@@ -164,15 +166,39 @@ def solve(instance: Instance | str, config: SatConfig = SatConfig(),
     incumbents = []
 
     try:
+        iteration = 0
+        total_solve_time = 0.0
+
         while True:
+            iteration += 1
             clause_count += add_edge_constraints(solver, upper_bound)
             initial_clause_count = initial_clause_count or clause_count
-            if not solver.solve():
+
+            t0 = time.monotonic()
+            sat = solver.solve()
+            solve_time = time.monotonic() - t0
+            total_solve_time += solve_time
+
+            print(
+                f"[SAT {iteration}] bandwidth <= {upper_bound - 1}: "
+                f"{'SAT' if sat else 'UNSAT'} | "
+                f"solve={solve_time:.3f}s | "
+                f"total={total_solve_time:.3f}s | "
+                f"clauses={clause_count}",
+                flush=True,
+            )
+
+            if not sat:
                 return SatResult("OPTIMAL", upper_bound, encoding_time, time.monotonic() - started - encoding_time,
                                  variables, initial_clause_count, incumbents)
 
             assignment = extract_assignment(solver.get_model(), instance.n)
-            upper_bound = compute_cyclic_bandwidth(instance.n, instance.edges, assignment)
+            new_upper_bound = compute_cyclic_bandwidth(instance.n, instance.edges, assignment)
+            print(
+                f"[SAT {iteration}] incumbent: {upper_bound} -> {new_upper_bound}",
+                flush=True,
+            )
+            upper_bound = new_upper_bound
             incumbents.append({"elapsed": time.monotonic() - started, "ub": upper_bound})
             if checkpoint:
                 checkpoint(upper_bound, incumbents)
