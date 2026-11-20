@@ -12,8 +12,8 @@ from helper.helper import (canonical, completed_keys, display_name, export_csv,
 from helper.plots import plot_ablation, plot_encoding, plot_incumbents, plot_methods
 from solvers import cp_sat, cplex_cp, cplex_mip, gurobi
 
-EXEMPLARS = ("dwt_234", "impcol_d", "bcsstk06", "494_bus", "662_bus", "can_715")
-LARGE = ("494_bus", "662_bus", "can_715")
+EXEMPLARS = ("bcsstk01", "curtis54", "bcspwr02", "will57")
+LARGE = ("ash85", "bcspwr03", "will57")
 EXTERNAL_SOLVERS = {
     "CP-SAT": cp_sat.solve,
     "CPLEX CP": cplex_cp.solve,

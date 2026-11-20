@@ -44,7 +44,7 @@ def solve(instance, timeout: int) -> dict:
         }
 
     state = str(solution.get_solve_status()).upper()
-    ub = int(solution.get_objective_values()[0]) if "FEASIBLE" in state or "OPTIMAL" in state else None
+    ub = int(solution.get_objective_values()[0]) if state in {"OPTIMAL", "FEASIBLE"} else None
     return {
         "status": "OPTIMAL" if "OPTIMAL" in state else "TIMEOUT" if ub is not None else "ERROR",
         "best_ub": ub,

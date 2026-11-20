@@ -144,13 +144,20 @@ def extract_assignment(model, n: int) -> list[int]:
 
 
 def solve(instance: Instance | str, config: SatConfig = SatConfig(),
-          checkpoint: Callable[[int, list[dict]], None] | None = None) -> SatResult:
+          checkpoint: Callable[[int, list[dict]], None] | None = None,
+          on_encoded: Callable[[dict], None] | None = None) -> SatResult:
     """Solve one CBMP instance, returning timings and every improving incumbent."""
     if isinstance(instance, str):
         instance = load_instance(instance)
 
     started = time.monotonic()
     upper_bound = initial_upper_bound(instance, config.heuristic)
+    incumbents = []
+    if config.heuristic:  # the heuristic layout is a real incumbent, found at time ~0
+        incumbents.append({"elapsed": time.monotonic() - started, "ub": upper_bound})
+        if checkpoint:
+            checkpoint(upper_bound, incumbents)
+
     if config.distance == "direct":
         estimated = len(instance.edges) * direct_edge_clause_count(instance.n, upper_bound)
         if estimated > MAX_DIRECT_CLAUSES:
@@ -159,11 +166,12 @@ def solve(instance: Instance | str, config: SatConfig = SatConfig(),
 
     clauses, variables, add_edge_constraints = make_sat_formula(instance, config)
     encoding_time = time.monotonic() - started
+    if on_encoded:
+        on_encoded({"encoding_time": encoding_time, "variables": variables})
     solver = Cadical195()
     solver.append_formula(clauses)
     clause_count = len(clauses)
     initial_clause_count = None
-    incumbents = []
 
     try:
         iteration = 0
@@ -206,35 +214,63 @@ def solve(instance: Instance | str, config: SatConfig = SatConfig(),
         solver.delete()
 
 
-def _solve_worker(queue, shared_ub, instance: Instance, config: SatConfig):
-    def checkpoint(upper_bound, _incumbents):
-        shared_ub.value = upper_bound
-
+def _solve_worker(conn, instance: Instance, config: SatConfig):
+    """Child process: stream progress to the parent as it happens."""
     try:
-        queue.put(solve(instance, config, checkpoint).as_dict())
+        result = solve(instance, config,
+                       checkpoint=lambda _ub, incumbents: conn.send(("incumbent", incumbents[-1])),
+                       on_encoded=lambda info: conn.send(("encoded", info)))
+        conn.send(("result", result.as_dict()))
     except Exception as error:
-        queue.put(SatResult("ERROR", shared_ub.value if shared_ub.value >= 0 else None,
-                            None, None, None, None, message=repr(error)).as_dict())
+        conn.send(("error", repr(error)))
+    finally:
+        conn.close()
 
 
 def solve_timed(instance: Instance, config: SatConfig, timeout: float) -> SatResult:
-    """Apply a hard timeout in a child process for solvers without interruption support."""
-    initial_ub = initial_upper_bound(instance, config.heuristic)
-    shared_ub = mp.Value("i", initial_ub)
-    queue = mp.Queue()
-    process = mp.Process(target=_solve_worker, args=(queue, shared_ub, instance, config))
+    """Apply a hard timeout in a child process; keep every incumbent the child reported."""
+    receiver, sender = mp.Pipe(duplex=False)
+    process = mp.Process(target=_solve_worker, args=(sender, instance, config))
     started = time.monotonic()
     process.start()
-    process.join(timeout)
-    elapsed = time.monotonic() - started
+    sender.close()
 
+    incumbents: list[dict] = []
+    info: dict = {}
+    final = None
+
+    def drain() -> None:
+        nonlocal final
+        while final is None:
+            try:
+                if not receiver.poll():
+                    return
+                kind, payload = receiver.recv()
+            except (EOFError, OSError):  # BrokenPipeError is an OSError: child closed its end
+                return
+            if kind == "incumbent":
+                incumbents.append(payload)
+            elif kind == "encoded":
+                info.update(payload)
+            else:
+                final = (kind, payload)
+
+    while final is None and process.is_alive() and time.monotonic() - started < timeout:
+        drain()
+        time.sleep(0.05)
+    timed_out = final is None and process.is_alive()
     if process.is_alive():
         process.terminate()
-        process.join()
-        incumbents = [{"elapsed": 0.0, "ub": shared_ub.value}] if shared_ub.value >= 0 else []
-        return SatResult("TIMEOUT", shared_ub.value if shared_ub.value >= 0 else None,
-                         None, elapsed, None, None, incumbents)
-    if not queue.empty():
-        return SatResult(**queue.get())
-    return SatResult("ERROR", None, None, elapsed, None, None,
-                     message=f"worker exited with code {process.exitcode}")
+    process.join()
+    drain()
+    elapsed = time.monotonic() - started
+    best_ub = incumbents[-1]["ub"] if incumbents else None
+
+    if final and final[0] == "result":
+        return SatResult(**final[1])
+    if timed_out:
+        return SatResult("TIMEOUT", best_ub, info.get("encoding_time"), elapsed,
+                         info.get("variables"), None, incumbents)
+    message = final[1] if final else f"worker exited with code {process.exitcode}"
+    return SatResult("ERROR", best_ub, info.get("encoding_time"), elapsed,
+                     info.get("variables"), None, incumbents, message=message)
