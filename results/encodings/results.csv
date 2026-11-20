@@ -1,0 +1,13 @@
+best_ub,clauses,distance,edges,encoding_time,exactly_one,gap,group,instance,known_lb,message,method,n,solve_time,status,timeout_seconds,variables
+12,22969,direct,176,0.003777700010687113,product,6,encodings,bcsstk01,6,,direct,48,85.39981039997656,OPTIMAL,600,3648
+12,24481,order,176,0.0036498999688774347,product,6,encodings,bcsstk01,6,,order,48,9.963305899989791,OPTIMAL,600,5328
+12,72001,order,176,0.012452399940229952,pairwise,6,encodings,bcsstk01,6,,order,48,7.573653500061482,OPTIMAL,600,4656
+8,,direct,124,0.005575599963776767,product,0,encodings,curtis54,8,,direct,54,600.0506077000173,TIMEOUT,600,4536
+8,30279,order,124,0.006147400010377169,product,0,encodings,curtis54,8,,order,54,19.10426239995286,OPTIMAL,600,6696
+8,99075,order,124,0.02312210004311055,pairwise,0,encodings,curtis54,8,,order,54,29.608684499980882,OPTIMAL,600,5886
+7,84428,direct,59,0.006845300085842609,product,4,encodings,bcspwr02,3,,direct,49,573.3619420999894,OPTIMAL,600,3773
+7,20909,order,59,0.00480190000962466,product,4,encodings,bcspwr02,3,,order,49,21.889481400023215,OPTIMAL,600,5537
+7,71673,order,59,0.01454619993455708,pairwise,4,encodings,bcspwr02,3,,order,49,43.963119300082326,OPTIMAL,600,4851
+6,238318,direct,127,0.006705899955704808,product,1,encodings,will57,5,,direct,57,18.87149930000305,OPTIMAL,600,5073
+6,33837,order,127,0.0077825000043958426,product,1,encodings,will57,5,,order,57,4.12608930002898,OPTIMAL,600,7467
+6,115119,order,127,0.02252200001385063,pairwise,1,encodings,will57,5,,order,57,2.59841580002103,OPTIMAL,600,6555

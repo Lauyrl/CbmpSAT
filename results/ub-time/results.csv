@@ -1,0 +1,4 @@
+best_ub,clauses,distance,edges,encoding_time,exactly_one,gap,group,instance,known_lb,message,method,n,solve_time,status,timeout_seconds,variables
+9,83426,order,219,0.012373600038699806,product,4,ub-time,ash85,5,,SAT,85,335.6379284999566,OPTIMAL,600,16150
+10,,order,179,0.025025399983860552,product,5,ub-time,bcspwr03,5,,SAT,118,600.0365436000284,TIMEOUT,600,30562
+6,33837,order,127,0.008779300027526915,product,1,ub-time,will57,5,,SAT,57,3.8522309999680147,OPTIMAL,600,7467
