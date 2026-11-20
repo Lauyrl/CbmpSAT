@@ -35,29 +35,34 @@ def plot_encoding(rows: list[dict], directory: Path) -> None:
     if plt is None:
         return
 
+    configs = sorted({(r["distance"], r["exactly_one"]) for r in rows})
+    instances = sorted({r["instance"] for r in rows})
+    width = 0.8 / len(configs)
+
     figure, axis = plt.subplots()
-    for method, style in (("direct", "o-"), ("order", "s-")):
-        points = sorted((row["n"], row["clauses"] / row["edges"]) for row in rows
-                        if row["method"] == method and row["exactly_one"] == "product"
-                        and row["status"] != "ENCODING_FAILED"
-                        and row["clauses"] is not None and row["edges"] > 0)
-        if points:
-            axis.plot(*zip(*points), style, label=f"{method} measured")
+    for k, (distance, eo) in enumerate(configs):
+        label = f"{distance}+{eo}"
+        for i, name in enumerate(instances):
+            same_config = [r for r in rows if r["instance"] == name
+                           and r["distance"] == distance and r["exactly_one"] == eo]
+            match = [r for r in same_config
+                     if r["status"] != "ENCODING_FAILED" and r["solve_time"] is not None]
+            failed = [r for r in same_config if r["status"] == "ENCODING_FAILED"]
+            x = i + k * width
 
-    analytical = sorted((row["n"], row["clauses"] / row["edges"]) for row in rows
-                        if row["method"] == "direct" and row["exactly_one"] == "product"
-                        and row["status"] == "ENCODING_FAILED"
-                        and row["clauses"] is not None and row["edges"] > 0)
-    if analytical:
-        axis.plot(*zip(*analytical), "k--", label="direct analytical")
+            if match:
+                axis.bar(x, match[0]["solve_time"], width, label=label, color=f"C{k}",
+                         hatch="//" if match[0]["status"] == "TIMEOUT" else None)
+                label = None  # one legend entry per config
+            elif failed:
+                axis.text(x, 0, "✗", color="red", ha="center", va="bottom", fontsize=12)
 
-    axis.set(xlabel="N", ylabel="clauses per edge", yscale="log")
+    axis.set_xticks([i + 0.4 - width / 2 for i in range(len(instances))], instances)
+    axis.set(ylabel="solve time (s)")
     axis.legend()
     figure.tight_layout()
-    figure.savefig(directory / "clauses_per_edge.png", dpi=180)
+    figure.savefig(directory / "encoding_configs.png", dpi=180)
     plt.close(figure)
-
-    plot_methods(rows, directory)
 
 
 def plot_incumbents(rows: list[dict], directory: Path) -> None:
@@ -65,16 +70,26 @@ def plot_incumbents(rows: list[dict], directory: Path) -> None:
     if plt is None:
         return
 
-    figure, axis = plt.subplots()
+    by_instance: dict[str, list[dict]] = {}
     for row in rows:
-        values = row.get("incumbents", [])
-        if values:
-            elapsed = [point["elapsed"] for point in values]
-            bounds = [point["ub"] for point in values]
-            axis.step([0] + elapsed, [bounds[0]] + bounds, where="post", label=f"{row['instance']} / {row['method']}")
+        if row.get("incumbents"):
+            by_instance.setdefault(row["instance"], []).append(row)
 
-    axis.set(xlabel="elapsed time, including encoding (s)", ylabel="best UB")
-    axis.legend(fontsize="small")
+    if not by_instance:
+        return
+
+    figure, axes = plt.subplots(1, len(by_instance), figsize=(4 * len(by_instance), 3), squeeze=False)
+    for axis, (name, group) in zip(axes[0], by_instance.items()):
+        for row in group:
+            points = row["incumbents"]
+            end = row["timeout_seconds"] if row["status"] == "TIMEOUT" else (row.get("encoding_time") or 0) + row["solve_time"]
+            label = f"{row['method']} {row.get('key', '')[-40:]}" if len(group) > 1 else row["method"]
+            axis.step([max(p["elapsed"], 1e-3) for p in points] + [end],
+                      [p["ub"] for p in points] + [points[-1]["ub"]],
+                      where="post", label=label)
+        axis.set(title=name, xlabel="elapsed incl. encoding (s)", ylabel="best UB", xscale="log")
+        axis.legend(fontsize="x-small")
+
     figure.tight_layout()
     figure.savefig(directory / "ub_vs_time.png", dpi=180)
     plt.close(figure)
@@ -90,9 +105,20 @@ def plot_ablation(rows: list[dict], directory: Path) -> None:
     figure, axes = plt.subplots(1, len(instances), figsize=(4 * len(instances), 3), squeeze=False)
     for axis, name in zip(axes[0], instances):
         values = {row.get("level"): row for row in rows if row["instance"] == name}
-        times = [(values[level]["encoding_time"] or 0) + (values[level]["solve_time"] or 0)
-                 if level in values else 0 for level in levels]
-        axis.bar(levels, times)
+        times, hatches = [], []
+        for level in levels:
+            row = values.get(level)
+            if row is None:
+                times.append(0); hatches.append("")
+                axis.text(levels.index(level), 1, "n/a", ha="center")
+            elif row["status"] == "OPTIMAL":
+                times.append((row["encoding_time"] or 0) + row["solve_time"]); hatches.append("")
+            else:
+                times.append(row["solve_time"] or 0); hatches.append("//")  # TIMEOUT/ERROR: total elapsed already
+        bars = axis.bar(levels, times)
+        for bar, hatch in zip(bars, hatches):
+            bar.set_hatch(hatch)
+        axis.set_yscale("log")
         axis.set(title=name, ylabel="time (s)")
 
     figure.tight_layout()
