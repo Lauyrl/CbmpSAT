@@ -74,6 +74,28 @@ def group_jobs(group: str):
             ("weak", "medium", "strong", "no_rotation", "no_reflection", "no_heuristic")]
 
 
+def _export_group_outputs(group: str, directory: Path, records_path: Path) -> list[dict]:
+    rows = export_csv(records_path, directory / "results.csv")
+    if group == "methods":
+        plot_methods(rows, directory)
+    elif group == "encodings":
+        plot_encoding(rows, directory)
+    elif group == "ub-time":
+        plot_incumbents(rows, directory)
+    elif group == "ablation":
+        plot_ablation(rows, directory)
+    return rows
+
+
+def rebuild_group_outputs(group: str, output: Path) -> list[dict]:
+    """Regenerate CSV exports and plots from saved records without solving."""
+    directory = output / group
+    records_path = directory / "records.jsonl"
+    if not records_path.exists():
+        raise FileNotFoundError(f"no saved experiment records at {records_path}")
+    return _export_group_outputs(group, directory, records_path)
+
+
 def run_group(group: str, datasets: list[str], timeout: int, output: Path, force: bool):
     directory = output / group
     directory.mkdir(parents=True, exist_ok=True)
@@ -111,16 +133,7 @@ def run_group(group: str, datasets: list[str], timeout: int, output: Path, force
             record["key"] = key
             write_record(records_path, record)
 
-    rows = export_csv(records_path, directory / "results.csv")
-    if group == "methods":
-        plot_methods(rows, directory)
-    elif group == "encodings":
-        plot_encoding(rows, directory)
-    elif group == "ub-time":
-        plot_incumbents(rows, directory)
-    elif group == "ablation":
-        plot_ablation(rows, directory)
-    return rows
+    return _export_group_outputs(group, directory, records_path)
 
 
 def parse_args():
@@ -130,17 +143,26 @@ def parse_args():
     parser.add_argument("--output", type=Path, default=Path("results"))
     parser.add_argument("--datasets", nargs="*", help="override the group's default instances")
     parser.add_argument("--force", action="store_true", help="rerun completed settings")
+    parser.add_argument(
+        "--rebuild-only",
+        action="store_true",
+        help="rebuild CSV exports and plots from saved records without running solvers",
+    )
     return parser.parse_args()
 
 
 def main():
     args = parse_args()
     groups = ("methods", "encodings", "ub-time", "ablation") if args.group == "all" else (args.group,)
+    if args.rebuild_only:
+        for group in groups:
+            rebuild_group_outputs(group, args.output)
+        return
+
     for group in groups:
         defaults = (tuple(display_name(path.stem) for path in DATASETS.glob("*.mtx")) if group == "methods"
                     else LARGE if group == "ub-time" else EXEMPLARS)
         run_group(group, args.datasets or list(defaults), args.timeout, args.output, args.force)
-
 
 if __name__ == "__main__":
     main()

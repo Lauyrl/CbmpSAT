@@ -49,7 +49,7 @@ def export_csv(records_path: Path, output: Path) -> list[dict]:
     rows = [json.loads(line) for line in records_path.read_text().splitlines() if line.strip()]
     fieldnames = sorted({key for row in rows for key in row if key not in {"incumbents", "key"}})
     with output.open("w", newline="", encoding="utf8") as stream:
-        writer = csv.DictWriter(stream, fieldnames=fieldnames)
+        writer = csv.DictWriter(stream, fieldnames=fieldnames, lineterminator="\n")
         writer.writeheader()
         writer.writerows({key: value for key, value in row.items() if key in fieldnames} for row in rows)
     return rows

@@ -6,3 +6,4 @@ ortools
 docplex
 cplex
 gurobipy
+cnsplots>=0.8.0
