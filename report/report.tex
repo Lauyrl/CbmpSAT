@@ -42,7 +42,7 @@
 \author{Student: Lê Nam Huy-24021516}
 % Abstract
 \begin{abstract}
-We present an exact SAT-based approach to the Cyclic Bandwidth Minimization Problem (CBMP) using direct and order distance encodings, pairwise and product exactly-one encodings, incremental bound reduction, symmetry breaking, and a Reverse Cuthill--McKee initial bound. The local experiment snapshot contains 179 runs on MatrixMarket graphs, including 28 graph instances in a comparison of CaDiCaL SAT with CP-SAT, CPLEX MIP, CPLEX CP Optimizer, and Gurobi under a 600-second limit. CaDiCaL proves optimality on 12 of those 28 instances; the other solver outcomes include timeouts and recorded license or model errors. Separate encoding and ablation studies cover four instances each, and all 24 ablation runs prove optimality. The results are single-run observations and do not support statistical or general performance claims.
+We present an exact SAT-based approach to the Cyclic Bandwidth Minimization Problem (CBMP) using direct and order label range encodings, pairwise and product at-most-one (AMO) encodings, incremental bound reduction, symmetry breaking, and a Reverse Cuthill--McKee initial upper bound. The local experiment snapshot contains 179 runs on Harwell-Boeing graphs, including 28 graph instances in a comparison of CaDiCaL SAT with CP-SAT, CPLEX MIP, CPLEX CP Optimizer, and Gurobi under a 600-second limit. CaDiCaL proves optimality on 12 of those 28 instances; the other method outcomes include timeouts and recorded license or model errors. Separate encoding and ablation studies cover four instances each, and all 24 ablation runs prove optimality. The results are single-run observations and do not support statistical or general performance claims.
 \end{abstract}
 
 \maketitle
@@ -54,7 +54,7 @@ We present an exact SAT-based approach to the Cyclic Bandwidth Minimization Prob
     A natural extension of BMP is the Cyclic Bandwidth Minimization Problem (CBMP), in which each label is assigned to vertices of a cyclic graph. While CBMP shares many similarities with BMP, the cyclic nature of the labeling introduces additional complexities that distinguish it from the classical problem and require specialized solution techniques. Over the years, researchers have proposed various approaches to solve BMP and CBMP. Early studies focused on finding exact bandwidths or lower bounds for general graphs. Eventually, exact algorithms were developed that include the implementation of branch-and-bound \cite{10.1007/978-3-642-37798-3_13}, the obtaining of lower bounds using distance- and degree-related parameters \cite{ZHOU2000357}, or the derivation of sharp upper-bounds by adding new edges \cite{CHAN2008131}. Using these theoretical studies, practical solutions like tabu search \cite{RODRIGUEZTELLO201517} and iterated three-phases search (ITPS) \cite{REN765302} have been proposed and proven to be state-of-the-art for solving CBMP.
     % Exact algorithms, including branch-and-bound methods and integer programming formulations, can produce optimal solutions but often suffer from high computational costs due to the combinatorial explosion of the search space. Consequently, numerous heuristic and metaheuristic approaches, such as genetic algorithms, tabu search, variable neighborhood search, and ant colony optimization, have been developed to obtain high-quality solutions within reasonable computational times. Although these methods have demonstrated promising performance, they may not always guarantee optimality.
 
-    This report studies an exact SAT approach to CBMP. It describes direct and order encodings for cyclic distance constraints, pairwise and product encodings for exactly-one constraints, incremental reduction of the bandwidth bound, rotation and reflection symmetry breaking, and a heuristic initial upper bound. The experiments compare the SAT approach with CP-SAT, CPLEX MIP, CPLEX CP Optimizer, and Gurobi, and evaluate encoding choices and ablations. The current results are from the recorded benchmark runs; this report does not claim comparisons with tabu search or ITPS.
+    This report studies an exact SAT approach to CBMP. It describes direct and order encodings for the label range constraint, pairwise and product encodings for at-most-one (AMO) constraints, incremental reduction of the bandwidth bound, rotation and reflection symmetry breaking, and a heuristic initial upper bound. The experiments compare the SAT approach with CP-SAT, CPLEX MIP, CPLEX CP Optimizer, and Gurobi, and evaluate encoding choices and ablations. The current results are from the recorded benchmark runs; this report does not claim comparisons with tabu search or ITPS.
 
     The remainder of the paper is organized as follows. Section 2 defines CBMP and SAT. Section 3 presents the encodings and search procedure. Section 4 describes the experiments and their results. Section 5 concludes the report.
 
@@ -65,11 +65,11 @@ We present an exact SAT-based approach to the Cyclic Bandwidth Minimization Prob
 \section{Background}
 
     \subsection{Problem Definition}
-        Let $G(V,E)$ be a finite undirected graph with vertex set $V$ of size $n$, $C_n$ be a cyclic graph with $n$ vertices and an embedding (also called labelling or arrangement) $\varphi$ of $G$ in $C_n$ be one-on-one mapping from $V$ to $V$. The cyclic bandwidth is then given as:
+        Let $G(V,E)$ be a finite undirected graph with vertex set $V$ of size $N$, $C_N$ be a cyclic graph with $N$ vertices and an embedding (also called labelling or arrangement) $\varphi$ of $G$ in $C_N$ be one-on-one mapping from $V$ to $V$. The cyclic bandwidth is then given as:
         \begin{center}
-            $C_b(G, \varphi) = \max\limits_{(u,v)\in E}{|\varphi(u)-\varphi(v)|_n}$
+            $C_b(G, \varphi) = \max\limits_{(u,v)\in E}{|\varphi(u)-\varphi(v)|_N}$
         \end{center}
-        with $\varphi(u)$ being a label assigned to vertex $u$ and $|x|_n$ equaling the minimum cycle distance, or $min(|x|, n-|x|)$.
+        with $\varphi(u)$ being a label assigned to vertex $u$ and $|x|_N$ equaling the minimum cycle distance, or $\min(|x|, N-|x|)$.
 
         The Cyclic Bandwidth Minimization Problem (CBMP)'s objective is to find an embedding $\varphi^* \in Q$ that minimizes the cyclic bandwidth of the graph, where $Q$ is the set of all possible labellings.
 
@@ -140,21 +140,21 @@ We present an exact SAT-based approach to the Cyclic Bandwidth Minimization Prob
 
 
     \subsection{Label range constraint}
-        Given a graph $G(V,E)$ with $|V|=N$ and a bandwidth upper bound $\text{UB}$, we consider an assignment $A$ valid if every edge satisfies a bandwidth constraint, namely, the distance between the labels of its vertices must be less than UB.
+        Given a graph $G(V,E)$ with $|V|=N$ and a bandwidth upper bound $\text{UB}$, we consider a labelling $\varphi$ valid if every edge satisfies a bandwidth constraint, namely, the distance between the labels of its vertices must be less than $\text{UB}$.
         
-        Let $a(u)=i$ and $a(v)=j$. In CBMP, labels lie on a circle and the distance between two labels is:
+        Let $\varphi(u)=i$ and $\varphi(v)=j$. In CBMP, labels lie on a circle and the distance between two labels is:
         \begin{equation}
             \label{eq:cyclic_distance}
-            d(i,j) = \min\bigl(|i-j|,\; N-|i-j|\bigr).
+            d(i,j) = |i-j|_N = \min\bigl(|i-j|,\; N-|i-j|\bigr).
         \end{equation}
-        An edge $(u,v)\in E$ satisfies the bandwidth constraint if $d(i,j) \le \text{UB}-1$ (equivalently, $d(i,j) < \text{UB}$). The general approach to encoding this constraint involves fixing one vertex's label and applying a \textbf{label range constraint} on the other vertex. Specifically, for each $i$, if $a(u)=i$, then $a(v) \in [i-\text{UB}+1,\, i+\text{UB}-1] \bmod N$.
+        An edge $(u,v)\in E$ satisfies the bandwidth constraint if $d(i,j) \le \text{UB}-1$ (equivalently, $d(i,j) < \text{UB}$). The general approach to encoding this constraint involves fixing one vertex's label and applying a \textbf{label range constraint} on the other vertex. Specifically, for each $i$, if $\varphi(u)=i$, then $\varphi(v) \in [i-\text{UB}+1,\, i+\text{UB}-1] \bmod N$.
         
         \vspace{1em}
 
         Note that since $d(i,j)$ is symmetric, applying these constraints in one direction ($u \to v$) is sufficient. 
 
         \paragraph{\textbf{Direct encoding.}}
-            The direct encoding explicitly forbids every pair of labels that are too far apart. Specifically, for each edge $(u,v)\in E$ and all assignments $a(u)=i$ and $a(v)=j$:
+            The direct encoding explicitly forbids every pair of labels that are too far apart. Specifically, for each edge $(u,v)\in E$ and all assignments $\varphi(u)=i$ and $\varphi(v)=j$:
             \begin{equation}
                 \neg x_u^i \vee \neg x_v^j \qquad \forall \; 1 \le i,j \le N,\; \text{if} \; d(i,j) \geq \text{UB}.
             \end{equation}
@@ -164,9 +164,9 @@ We present an exact SAT-based approach to the Cyclic Bandwidth Minimization Prob
             Note that this encoding additionally requires $\text{AMO}(X_u) \wedge \text{ALO}(X_u)$ clauses for every vertex $u$, to ensure that each vertex is assigned exactly one label.
 
         \paragraph{\textbf{Order encoding.}}
-            The order encoding introduces $N+1$ auxiliary variables \textit{per vertex}: $G_u=\{g_u^1, g_u^2,\dots, g_u^N, g_u^{N+1}\}$, where $g_u^k$ is true if $a(u) \ge k$. The variable $g_v^k$ expresses a left bound $a(v) \geq k$, while its negation $\neg g_v^k$ expresses a right bound $a(v) < k$.
+            The order encoding introduces $N+1$ auxiliary variables \textit{per vertex}: $G_u=\{g_u^1, g_u^2,\dots, g_u^N, g_u^{N+1}\}$, where $g_u^k$ is true if $\varphi(u) \ge k$. The variable $g_v^k$ expresses a left bound $\varphi(v) \geq k$, while its negation $\neg g_v^k$ expresses a right bound $\varphi(v) < k$.
             
-            For example, with $N=6$ and $a(u)=3$:
+            For example, with $N=6$ and $\varphi(u)=3$:
             \begin{center}
                 \begin{tabular}{c|ccccccc}
                     label $k$ & 1                   & 2                   & 3                   & 4 & 5 & 6 & 7  \\ \hline
@@ -181,7 +181,7 @@ We present an exact SAT-based approach to the Cyclic Bandwidth Minimization Prob
             \begin{equation}
                 g_u^{k+1} \rightarrow g_u^{k} \qquad \forall \; u\in V,\; 1 \le k < N
             \end{equation}
-            In combination with the constants $g_u^1 = \text{true}$ and $g_u^{N+1} = \text{false}$, these clauses enforce that if $a(u)=k$, then $G_u$ is a series of true variables starting from the constant $g_u^1$ up until $g_u^k$, followed by a series of false variables, bounded by $g_u^{N+1}$.
+            In combination with the constants $g_u^1 = \text{true}$ and $g_u^{N+1} = \text{false}$, these clauses enforce that if $\varphi(u)=k$, then $G_u$ is a series of true variables starting from the constant $g_u^1$ up until $g_u^k$, followed by a series of false variables, bounded by $g_u^{N+1}$.
 
             \vspace{1em}
 
@@ -208,7 +208,7 @@ We present an exact SAT-based approach to the Cyclic Bandwidth Minimization Prob
                 x_u^i &\rightarrow (\neg g_v^{i+\text{UB}-N} \vee g_v^{i-\text{UB}+1})
             \end{align}
 
-            In the wrapping cases the allowed sets are a union of two intervals, $[1,\,i+\text{UB}-1] \cup [N+i-\text{UB}+1,\,N]$ when wrapping left, and $[1,\,i+\text{UB}-N-1] \cup [i-\text{UB}+1,\,N]$ when wrapping right. The two wrapping cases cannot occur simultaneously when the upper bound is correctly initialized as $\text{UB} \le \left\lfloor \frac{N}{2} \right\rfloor$.
+            In the wrapping cases the allowed sets are a union of two intervals, $[1,\,i+\text{UB}-1] \cup [N+i-\text{UB}+1,\,N]$ when wrapping left, and $[1,\,i+\text{UB}-N-1] \cup [i-\text{UB}+1,\,N]$ when wrapping right. The two wrapping cases cannot occur simultaneously when $\text{UB} \le \left\lfloor \frac{N}{2} \right\rfloor$; a larger bound restricts nothing, since $d(i,j) \le \left\lfloor \frac{N}{2} \right\rfloor$ always holds.
 
         \paragraph{\textbf{Clause counts.}}
             Assuming $\text{UB} \le \left\lfloor \frac{N}{2} \right\rfloor$, the allowed label range of $v$ contains $2\,\text{UB}-1$ labels, so for each of the $N$ potential labels $i\in [1,N]$ of $u$: the direct encoding forbids $N-(2\,\text{UB}-1)$ labels of $v$, therefore $N(N-2\,\text{UB}+1)$ clauses are required \textit{per edge}. Additionally, the direct encoding needs roughly $2N$ $\text{AMO}$ clauses (product encoding) and 1 $\text{ALO}$ clause \textit{per vertex} to ensure that each vertex is assigned exactly one label, so the total number of clauses required is about $|E|\cdot N(N-2\,\text{UB}+1) + N(2N+1)$. The order encoding takes roughly 2 clauses for each of the $N-2\,\text{UB}+2$ potential labels $i\in [\text{UB},N-\text{UB}+1]$ of $u$ that don't cause the valid label range of $v$ to wrap, plus 1 clause for each of the $2(\text{UB}-1)$ wrapping cases, therefore about $2N-2\,\text{UB}+2$ clauses are required \textit{per edge}. In addition, for each vertex $u$, it needs: roughly $N$ consistency clauses, $3N$ biconditional clauses, and 2 clauses for the constants $g_u^1$ and $g_u^{N+1}$, which brings the total to around $|E|\cdot (2N-2\,\text{UB}+2) + N(4N+2)$ clauses. This gives $O(|E|\cdot N^2)$ clauses for the direct encoding and $O(|E|\cdot N + N^2)$ for the order encoding.
@@ -233,7 +233,7 @@ We present an exact SAT-based approach to the Cyclic Bandwidth Minimization Prob
         Therefore, each subsequent formula can be obtained by appending new clauses, which enforce a smaller $\text{UB}$, to the previous formula. As each new formula is just an extension of a formula that the solver has already solved, this enables the same solver instance to be reused to solve them, rather than re-initialized. This technique is known as Incremental SAT, and it allows the solver to retain its internal heuristics and learned clauses across formulas, which can potentially reduce solve times.
 
         \paragraph{\textbf{Initial upper bound.}}
-            The search proceeds downwards from an initial upper bound, which is the bandwidth computed from a heuristic assignment (e.g.\ Cuthill-McKee).
+            The search proceeds downwards from an initial upper bound, which is the bandwidth computed from a heuristic assignment (Reverse Cuthill--McKee, RCM).
 
         \begin{algorithm}[H]
             \caption{Pseudocode of Incremental SAT for the cyclic bandwidth problem}
@@ -241,14 +241,14 @@ We present an exact SAT-based approach to the Cyclic Bandwidth Minimization Prob
                 \State \textbf{Input}: Undirected graph $G(V,E)$ with $|V|=N$, time limit: $T_{\max}$
                 \State \textbf{Output}: The best assignment $A$, and its resulting bandwidth $\text{UB}$
                 \Statex
-                \State $A \gets \textsc{InitialAssignment}(G)$ \Comment{heuristic assignment, e.g.\ Cuthill-McKee}
+                \State $A \gets \textsc{InitialAssignment}(G)$ \Comment{heuristic assignment (RCM)}
                 \State $\text{UB} \gets \textsc{Bandwidth}(A)$
                 \State $\text{clauses} \gets \textsc{InitialClauses}()$ \Comment{label assignment constraints, order encoding consistency constraints,...}
                 \Statex
                 \While{$\textsc{TimeElapsed}() < T_{\max}$}
                     \ForAll{$(u,v) \in E$}
                         \For{$i = 1$ \textbf{to} $N$}
-                            \State $\text{clauses}$.append( $[a(u)=i] \rightarrow [\min(|a(u)-a(v)|,\, N-|a(u)-a(v)|) \le \text{UB}-1]$ )
+                            \State $\text{clauses}$.append( $[\varphi(u)=i] \rightarrow [\min(|\varphi(u)-\varphi(v)|,\, N-|\varphi(u)-\varphi(v)|) \le \text{UB}-1]$ )
                         \EndFor
                     \EndFor
                     \Statex
@@ -265,45 +265,45 @@ We present an exact SAT-based approach to the Cyclic Bandwidth Minimization Prob
             \end{algorithmic}
         \end{algorithm}
 
-    \subsection{Symmetry Breaking Constraints}
+    \subsection{Symmetry breaking constraints}
 
-        \paragraph{Indexing convention.}
+        \paragraph{\textbf{Indexing convention.}}
         The equations in this section use labels $1,\dots,N$, as in the encoding above. The implementation indexes labels $0,\dots,N-1$; adding one to every label preserves all cyclic distances.
 
-        \paragraph{Rotation Symmetry Breaking:}
+        \paragraph{\textbf{Rotation symmetry breaking.}}
         We fix an arbitrary anchor vertex $v_1$ to label 1:
         \begin{equation}
-            f(v_1) = 1 \iff x_1^1.
+            \varphi(v_1) = 1 \leftrightarrow x_{v_1}^1.
             \label{eq:sb_rotation}
         \end{equation}
-        Any valid layout can be rotated to place $v_1$ at position 1 without changing the cyclic bandwidth. This removes rotationally equivalent assignments while retaining an optimal representative.
+        Any valid assignment can be rotated to place $v_1$ at label 1 without changing the cyclic bandwidth. This removes rotationally equivalent assignments while retaining an optimal representative.
 
-        \paragraph{Reflection Symmetry Breaking:}
-        With $f(v_1)=1$ fixed, reflecting the cycle while keeping position 1 fixed maps label 1 to itself and label $k$ to $N+2-k$ for $2 \le k \le N$. For $N \ge 3$, vertices $v_2$ and $v_N$ are distinct. We choose one orientation by enforcing
+        \paragraph{\textbf{Reflection symmetry breaking.}}
+        With $\varphi(v_1)=1$ fixed, reflecting the cycle while keeping label 1 fixed maps label 1 to itself and label $k$ to $N+2-k$ for $2 \le k \le N$. For $N \ge 3$, vertices $v_2$ and $v_N$ are distinct. We choose one orientation by enforcing
         \begin{equation}
-            f(v_2) < f(v_N).
+            \varphi(v_2) < \varphi(v_N).
             \label{eq:sb_reflection_math}
         \end{equation}
-        In the order encoding, $g_2^i$ is true when $f(v_2) \ge i$. Thus, if $v_N$ has label $i$, the reflection constraint requires $f(v_2)<i$, encoded by
+        In the order encoding, $g_{v_2}^i$ is true if $\varphi(v_2) \ge i$. Thus, if $v_N$ has label $i$, the reflection constraint requires $\varphi(v_2)<i$, encoded by
         \begin{equation}
-            x_N^i \implies \neg g_2^i
-            \iff (\neg x_N^i \lor \neg g_2^i)
+            x_{v_N}^i \rightarrow \neg g_{v_2}^i
+            \leftrightarrow (\neg x_{v_N}^i \vee \neg g_{v_2}^i)
             \quad \forall i \in \{1,\dots,N\}.
             \label{eq:sb_reflection_clauses}
         \end{equation}
         The benchmark instances in this report all have $N \ge 3$, the range for which this reflection constraint is defined.
 
-        \subsection{Heuristic Initial Upper Bound}
-            To minimize the number of iterations required to reach the optimum, we seed the search with an initial upper bound obtained from the \textbf{Reverse Cuthill--McKee (RCM)} algorithm \citep{cuthill1969rcm}. RCM constructs a breadth-first search layout starting from a pseudo-peripheral vertex, which notoriously produces low envelope and bandwidth on sparse physical graphs.
+        \subsection{Heuristic initial upper bound}
+            To minimize the number of iterations required to reach the optimum, we seed the search with an initial upper bound obtained from the RCM algorithm \citep{cuthill1969rcm}. RCM constructs a breadth-first search assignment starting from a pseudo-peripheral vertex, which notoriously produces low envelope and bandwidth on sparse physical graphs.
 
-            The RCM layout is evaluated via Eq.~(\ref{eq:cyclic_distance}) to obtain an initial bandwidth $\text{UB}_{\text{rcm}}$. If the heuristic permutation is valid, we set $\text{UB} = \text{UB}_{\text{rcm}}$; otherwise, the search defaults to the trivial bound $\text{UB} = \lfloor N/2 \rfloor + 1$.
+            The RCM assignment is evaluated via Eq.~(\ref{eq:cyclic_distance}) to obtain an initial bandwidth $\text{UB}_{\text{rcm}}$. If the heuristic assignment is valid, we set $\text{UB} = \text{UB}_{\text{rcm}}$; otherwise, the search defaults to the trivial bound $\text{UB} = \left\lfloor \frac{N}{2} \right\rfloor + 1$.
 
 
 \section{Experiments}
 
     \subsection{Experimental Setup}
 
-        The local snapshot contains four disjoint experiment groups with 179 recorded runs in total. The methods group has 28 MatrixMarket instances ($9 \le N \le 1104$), each run once with CaDiCaL SAT, CP-SAT, CPLEX MIP, CPLEX CP Optimizer, and Gurobi. The encoding group compares three distance/exactly-one configurations on four instances. The ablation group evaluates six settings on four instances, and the incumbent-progress group contains three runs. Each run has a 600-second time limit. There are no repeated trials, so runtimes are individual observations rather than averages.
+        The local snapshot contains four disjoint experiment groups with 179 recorded runs in total, summarized in Table~\ref{tab:experiment_groups}. The exact-methods group applies the five exact solving methods listed in Table~\ref{tab:specs} to 28 Harwell-Boeing instances ($9 \le N \le 1104$). The encoding group compares three configurations of the label range encoding and the AMO encoding on four instances. The ablation group evaluates six settings on four instances, and the incumbent-progress group, which tracks the best $\text{UB}$ found so far (the incumbent), contains three runs.
 
         \begin{center}
         \centering
@@ -313,7 +313,7 @@ We present an exact SAT-based approach to the Cyclic Bandwidth Minimization Prob
         \toprule
         Group & Configurations & Runs \\
         \midrule
-        Solver comparison & 28 instances $\times$ 5 solvers & 140 \\
+        Exact methods & 28 instances $\times$ 5 methods & 140 \\
         Encoding comparison & 4 instances $\times$ 3 configurations & 12 \\
         Ablation & 4 instances $\times$ 6 settings & 24 \\
         Incumbent progress & 3 instances & 3 \\
@@ -323,13 +323,33 @@ We present an exact SAT-based approach to the Cyclic Bandwidth Minimization Prob
         \end{tabular}
         \end{center}
 
-    \subsection{Comparison with Exact Solvers}
-
-        Table~\ref{tab:solver_status} summarizes the 140 runs in the methods group. A timeout means the run reached its time limit without a proof of optimality. The \texttt{ERROR} outcomes are reported as recorded and are not treated as solver proofs of infeasibility.
+        The environment and run specifications are given in Table~\ref{tab:specs}. There are no repeated trials, so runtimes are individual observations rather than averages.
 
         \begin{center}
         \centering
-        \captionof{table}{Status counts for the 28-instance exact-solver comparison.}
+        \captionof{table}{Environment and run specifications.}
+        \label{tab:specs}
+        \begin{tabular}{ll}
+        \toprule
+        Processor & 12th Gen Intel(R) Core(TM) i5-12500H \\
+        No. of cores & 12 \\
+        RAM & 16 GB \\
+        SAT solver & CaDiCaL 1.9.5 \\
+        Library & PySAT \\
+        Exact methods & CaDiCaL SAT, CP-SAT, CPLEX MIP, CPLEX CP Optimizer, Gurobi \\
+        Time limit per run & 600 seconds \\
+        Runs per configuration & 1 \\
+        \bottomrule
+        \end{tabular}
+        \end{center}
+
+    \subsection{Comparison with Exact Methods}
+
+        Table~\ref{tab:solver_status} summarizes the 140 runs in the exact-methods group. A timeout means the run reached its time limit without a proof of optimality. The \texttt{ERROR} outcomes are reported as recorded and are not treated as solver proofs of infeasibility.
+
+        \begin{center}
+        \centering
+        \captionof{table}{Status counts for the 28-instance comparison of exact methods.}
         \label{tab:solver_status}
         \begin{tabular}{lrrr}
         \toprule
@@ -344,7 +364,7 @@ We present an exact SAT-based approach to the Cyclic Bandwidth Minimization Prob
         \end{tabular}
         \end{center}
 
-        Of the 27 CPLEX MIP errors, 24 are recorded as model-size limits for the available edition and three as \texttt{INTEGER INFEASIBLE}. The 21 Gurobi errors report a size-limited license. These environment and model limits constrain the comparison; they are not evidence that those solvers are generally slower. The plot in Fig.~\ref{fig:methods_runtime} shows measured runtimes and distinguishes timeout runs from completed runs. Error records without a measured runtime are excluded from the runtime bars and identified in the figure caption.
+        Of the 27 CPLEX MIP errors, 24 are recorded as model-size limits for the available edition and three as \texttt{INTEGER INFEASIBLE}. The 21 Gurobi errors report a size-limited license. These environment and model limits constrain the comparison; they are not evidence that those methods are generally slower. The plot in Fig.~\ref{fig:methods_runtime} shows measured runtimes and distinguishes timeout runs from completed runs. Error records without a measured runtime are excluded from the runtime bars and identified in the figure caption.
 
         \begin{center}
 \begin{minipage}{\textwidth}
@@ -355,18 +375,18 @@ We present an exact SAT-based approach to the Cyclic Bandwidth Minimization Prob
         \end{minipage}
 \end{center}
 
-    \subsection{Distance and Exactly-One Encoding Comparison}
+    \subsection{Label Range and AMO Encoding Comparison}
 
-        The encoding experiment contains four instances and three configurations: direct distance encoding with product exactly-one, order distance encoding with product exactly-one, and order distance encoding with pairwise exactly-one. Table~\ref{tab:encoding_comparison} reports the recorded status, best upper bound (UB), and solver time. The timeout on the direct encoding for \texttt{curtis54} remains labeled as a timeout even though its recorded UB is 8.
+        The encoding experiment contains four instances and three configurations: the direct encoding with product AMO, the order encoding with product AMO, and the order encoding with pairwise AMO. Table~\ref{tab:encoding_comparison} reports the recorded status, best upper bound $\text{UB}$, and solver time. The timeout on the direct encoding for \texttt{curtis54} remains labeled as a timeout even though its recorded $\text{UB}$ is 8.
 
         \begin{center}
         \centering
         \small
-        \captionof{table}{Distance and exactly-one encoding results.}
+        \captionof{table}{Label range and AMO encoding results.}
         \label{tab:encoding_comparison}
         \begin{tabular}{llrrr}
         \toprule
-        Instance & Configuration & $N$ & Status / UB & Time (s) \\
+        Instance & Configuration & $N$ & Status / $\text{UB}$ & Time (s) \\
         \midrule
         \texttt{bcspwr02} & Direct + product & 49 & OPT / 7 & 573.36 \\
         & Order + product & 49 & OPT / 7 & 21.89 \\
@@ -384,26 +404,26 @@ We present an exact SAT-based approach to the Cyclic Bandwidth Minimization Prob
         \end{tabular}
         \end{center}
 
-        Order plus product has a lower recorded runtime than direct plus product on all four instances. The faster of the two order exactly-one variants differs by instance. This is a small, single-run comparison and does not establish a general ranking. Figure~\ref{fig:encoding_runtime} visualizes the encoding runs.
+        Order plus product has a lower recorded runtime than direct plus product on all four instances. The faster of the two AMO variants of the order encoding differs by instance. This is a small, single-run comparison and does not establish a general ranking. Figure~\ref{fig:encoding_runtime} visualizes the encoding runs.
 
         \begin{center}
 \begin{minipage}{\textwidth}
         \centering
         \includegraphics[width=0.9\textwidth]{../results/encodings/encoding_configs}
-        \captionof{figure}{Runtime comparison of the three distance/exactly-one configurations.}
+        \captionof{figure}{Runtime comparison of the three label range/AMO encoding configurations.}
         \label{fig:encoding_runtime}
         \end{minipage}
 \end{center}
 
     \subsection{Symmetry-Breaking and Heuristic Ablation}
 
-        The ablation compares weak, medium, and strong settings with runs that disable rotation symmetry breaking, reflection symmetry breaking, or the initial heuristic. All 24 runs prove optimality. For each instance, all six settings return the same best bandwidth; Table~\ref{tab:ablation_times} gives runtimes in seconds.
+        The ablation compares weak, medium, and strong settings with runs that disable rotation symmetry breaking, reflection symmetry breaking, or the heuristic initial upper bound. Weak uses neither symmetry breaking nor the heuristic initial upper bound, medium adds rotation symmetry breaking, and strong adds reflection symmetry breaking and the heuristic initial upper bound. No rotation disables both rotation and reflection symmetry breaking (reflection relies on the fixed anchor), no reflection disables only reflection, and no heuristic disables only the heuristic initial upper bound. All 24 runs prove optimality. For each instance, all six settings return the same best bandwidth; Table~\ref{tab:ablation_times} gives runtimes in seconds.
 
         \begin{center}
 \begin{minipage}{\textwidth}
         \centering
         \small
-        \captionof{table}{Ablation runtimes in seconds; all entries have status OPTIMAL.}
+        \captionof{table}{Ablation runtimes in seconds; all entries have status OPT.}
         \label{tab:ablation_times}
         \resizebox{\textwidth}{!}{%
         \begin{tabular}{lrrrrrr}
@@ -433,7 +453,7 @@ We present an exact SAT-based approach to the Cyclic Bandwidth Minimization Prob
 
     \subsection{Incumbent Progress}
 
-        Table~\ref{tab:ub_progress} summarizes the three saved incumbent-progress runs. The plot in Fig.~\ref{fig:ub_progress_plot} shows the incumbent trajectories available in the records. The \texttt{bcspwr03} run timed out with UB 10; the two other runs proved optimality.
+        Table~\ref{tab:ub_progress} summarizes the three saved incumbent-progress runs. The plot in Fig.~\ref{fig:ub_progress_plot} shows the incumbent trajectories available in the records. The \texttt{bcspwr03} run timed out with $\text{UB}$ 10; the two other runs proved optimality.
 
         \begin{center}
         \centering
@@ -441,7 +461,7 @@ We present an exact SAT-based approach to the Cyclic Bandwidth Minimization Prob
         \label{tab:ub_progress}
         \begin{tabular}{lrrrr}
         \toprule
-        Instance & $N$ & Status & Best UB & Time (s) \\
+        Instance & $N$ & Status & Best $\text{UB}$ & Time (s) \\
         \midrule
         \texttt{ash85} & 85 & OPT & 9 & 335.64 \\
         \texttt{bcspwr03} & 118 & TIMEOUT & 10 & 600.04 \\
@@ -461,13 +481,13 @@ We present an exact SAT-based approach to the Cyclic Bandwidth Minimization Prob
 
     \subsection{Discussion and Limitations}
 
-        The methods batch includes large matrices up to $N=1104$, but its 600-second limit leaves many runs unresolved. In that batch, CaDiCaL proves optimality on 12 of 28 instances; CP-SAT on 10; CPLEX CP Optimizer on 7; CPLEX MIP on 1; and Gurobi on 6. The commercial solver error counts reflect the available local licenses and recorded model errors, so the status table should be read as an account of this environment and batch.
+        The exact-methods batch includes large matrices up to $N=1104$, but its 600-second limit leaves many runs unresolved. In that batch, CaDiCaL proves optimality on 12 of 28 instances; CP-SAT on 10; CPLEX CP Optimizer on 7; CPLEX MIP on 1; and Gurobi on 6. The commercial solver error counts reflect the available local licenses and recorded model errors, so the status table should be read as an account of this environment and batch.
 
         The encoding and ablation results provide additional measurements on four smaller instances each. The ablation runs all prove the same optimum per instance, but the runtime differences vary across settings. Every configuration is represented by a single run, and no repeated-run statistical analysis is available. The plots and tables therefore describe this snapshot only; they do not establish statistically significant performance differences.
 
 \section{Conclusion}
 
-    This work implements an exact SAT-based CBMP solver with direct and order distance encodings, pairwise and product exactly-one constraints, incremental bound reduction, rotation and reflection symmetry breaking, and a heuristic initial upper bound. The local snapshot contains 179 runs, including comparisons against CP-SAT, CPLEX MIP, CPLEX CP Optimizer, and Gurobi on 28 MatrixMarket instances. It also records encoding comparisons, six ablation settings, and incumbent progress.
+    This work implements an exact SAT-based CBMP solver with direct and order label range encodings, pairwise and product AMO encodings, incremental bound reduction, rotation and reflection symmetry breaking, and a heuristic initial upper bound. The local snapshot contains 179 runs, including comparisons against CP-SAT, CPLEX MIP, CPLEX CP Optimizer, and Gurobi on 28 Harwell-Boeing instances. It also records encoding comparisons, six ablation settings, and incumbent progress.
 
     On the 28-instance comparison, CaDiCaL proves optimality on 12 instances under a 600-second limit. The encoding and ablation groups provide useful instance-level measurements, while license/model errors and unresolved timeouts limit broader comparisons. Larger runs and repeated trials would be needed to support stronger scalability and performance conclusions.
 
