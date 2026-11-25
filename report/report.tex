@@ -268,42 +268,42 @@ We present an exact SAT-based approach to the Cyclic Bandwidth Minimization Prob
     \subsection{Symmetry Breaking Constraints}
 
         \paragraph{Indexing convention.}
-        The equations in this section use labels $1,\dots,N$, as in the encoding above. The implementation indexes labels $0,\dots,N-1$; adding one to every label preserves all cyclic distances.
+        The equations in this section use labels from $1$ to $N$ as in the encodings above, while the implementation indexes labels from $0$ to $N-1$. Adding one to every label does not change any cyclic distance, so the two conventions are equivalent.
 
         \paragraph{Rotation Symmetry Breaking:}
-        We fix an arbitrary anchor vertex $v_1$ to label 1:
+        Since rotating a layout does not change its cyclic bandwidth, every labelling has $N$ equivalent rotations, and the solver would waste time exploring all of them. In order to remove these, we fix an arbitrary vertex $v_1$ to label 1:
         \begin{equation}
             f(v_1) = 1 \iff x_1^1.
             \label{eq:sb_rotation}
         \end{equation}
-        Any valid layout can be rotated to place $v_1$ at position 1 without changing the cyclic bandwidth. This removes rotationally equivalent assignments while retaining an optimal representative.
+        Any valid layout can be rotated so that $v_1$ is at position 1 without changing the cyclic bandwidth. Therefore, this constraint removes the rotationally equivalent assignments while still retaining an optimal one.
 
         \paragraph{Reflection Symmetry Breaking:}
-        With $f(v_1)=1$ fixed, reflecting the cycle while keeping position 1 fixed maps label 1 to itself and label $k$ to $N+2-k$ for $2 \le k \le N$. For $N \ge 3$, vertices $v_2$ and $v_N$ are distinct. We choose one orientation by enforcing
+        After $f(v_1)=1$ is fixed, the only symmetry left is reflecting the cycle while keeping position 1 fixed, which maps label 1 to itself and label $k$ to $N+2-k$ for $2 \le k \le N$. In order to keep only one of the two orientations, we require
         \begin{equation}
             f(v_2) < f(v_N).
             \label{eq:sb_reflection_math}
         \end{equation}
-        In the order encoding, $g_2^i$ is true when $f(v_2) \ge i$. Thus, if $v_N$ has label $i$, the reflection constraint requires $f(v_2)<i$, encoded by
+        Note that this requires $v_2$ and $v_N$ to be different vertices, which is true when $N \ge 3$. In the order encoding, $g_2^i$ is true if $f(v_2) \ge i$. Therefore, if $v_N$ is assigned label $i$, then $f(v_2)<i$ must hold, which is encoded as
         \begin{equation}
             x_N^i \implies \neg g_2^i
             \iff (\neg x_N^i \lor \neg g_2^i)
             \quad \forall i \in \{1,\dots,N\}.
             \label{eq:sb_reflection_clauses}
         \end{equation}
-        The benchmark instances in this report all have $N \ge 3$, the range for which this reflection constraint is defined.
+        All benchmark instances in this report have $N \ge 3$, so this constraint can be applied to all of them.
 
         \subsection{Heuristic Initial Upper Bound}
-            To minimize the number of iterations required to reach the optimum, we seed the search with an initial upper bound obtained from the \textbf{Reverse Cuthill--McKee (RCM)} algorithm \citep{cuthill1969rcm}. RCM constructs a breadth-first search layout starting from a pseudo-peripheral vertex, which notoriously produces low envelope and bandwidth on sparse physical graphs.
+            In order to reduce the number of iterations required to reach the optimum, we start the search from an initial upper bound obtained from the \textbf{Reverse Cuthill--McKee (RCM)} algorithm \citep{cuthill1969rcm}. RCM constructs a breadth-first search layout starting from a pseudo-peripheral vertex, which is known to produce low envelope and bandwidth on sparse physical graphs.
 
-            The RCM layout is evaluated via Eq.~(\ref{eq:cyclic_distance}) to obtain an initial bandwidth $\text{UB}_{\text{rcm}}$. If the heuristic permutation is valid, we set $\text{UB} = \text{UB}_{\text{rcm}}$; otherwise, the search defaults to the trivial bound $\text{UB} = \lfloor N/2 \rfloor + 1$.
+            The RCM layout is evaluated via Eq.~(\ref{eq:cyclic_distance}) to obtain an initial bandwidth $\text{UB}_{\text{rcm}}$. If the heuristic permutation is valid, we set $\text{UB} = \text{UB}_{\text{rcm}}$, otherwise the search starts from the trivial bound $\text{UB} = \lfloor N/2 \rfloor + 1$.
 
 
 \section{Experiments}
 
     \subsection{Experimental Setup}
 
-        The local snapshot contains four disjoint experiment groups with 179 recorded runs in total. The methods group has 28 MatrixMarket instances ($9 \le N \le 1104$), each run once with CaDiCaL SAT, CP-SAT, CPLEX MIP, CPLEX CP Optimizer, and Gurobi. The encoding group compares three distance/exactly-one configurations on four instances. The ablation group evaluates six settings on four instances, and the incumbent-progress group contains three runs. Each run has a 600-second time limit. There are no repeated trials, so runtimes are individual observations rather than averages.
+        The local snapshot contains four separate experiment groups with 179 recorded runs in total. The methods group has 28 MatrixMarket instances ($9 \le N \le 1104$), and each instance is run once with CaDiCaL SAT, CP-SAT, CPLEX MIP, CPLEX CP Optimizer, and Gurobi. The encoding group compares three distance/exactly-one configurations on four instances. The ablation group evaluates six settings on four instances, and the incumbent-progress group contains three runs. Every run has a time limit of 600 seconds. Since there are no repeated trials, the runtimes are individual observations and not averages.
 
         \begin{center}
         \centering
@@ -325,7 +325,7 @@ We present an exact SAT-based approach to the Cyclic Bandwidth Minimization Prob
 
     \subsection{Comparison with Exact Solvers}
 
-        Table~\ref{tab:solver_status} summarizes the 140 runs in the methods group. A timeout means the run reached its time limit without a proof of optimality. The \texttt{ERROR} outcomes are reported as recorded and are not treated as solver proofs of infeasibility.
+        Table~\ref{tab:solver_status} summarizes the 140 runs in the methods group. A timeout means that the run reached its time limit without proving optimality. The \texttt{ERROR} outcomes are reported as recorded, and they are not treated as proofs of infeasibility by the solvers.
 
         \begin{center}
         \centering
@@ -344,7 +344,7 @@ We present an exact SAT-based approach to the Cyclic Bandwidth Minimization Prob
         \end{tabular}
         \end{center}
 
-        Of the 27 CPLEX MIP errors, 24 are recorded as model-size limits for the available edition and three as \texttt{INTEGER INFEASIBLE}. The 21 Gurobi errors report a size-limited license. These environment and model limits constrain the comparison; they are not evidence that those solvers are generally slower. The plot in Fig.~\ref{fig:methods_runtime} shows measured runtimes and distinguishes timeout runs from completed runs. Error records without a measured runtime are excluded from the runtime bars and identified in the figure caption.
+        Among the 27 CPLEX MIP errors, 24 are recorded as model-size limits of the available edition and three as \texttt{INTEGER INFEASIBLE}. The 21 Gurobi errors all report a size-limited license. These limits come from the environment and the models, so they are not evidence that those solvers are generally slower. Fig.~\ref{fig:methods_runtime} shows the measured runtimes and separates timeout runs from completed runs. Runs with errors and no measured runtime are not drawn in the plot and are noted there.
 
         \begin{center}
 \begin{minipage}{\textwidth}
@@ -357,7 +357,7 @@ We present an exact SAT-based approach to the Cyclic Bandwidth Minimization Prob
 
     \subsection{Distance and Exactly-One Encoding Comparison}
 
-        The encoding experiment contains four instances and three configurations: direct distance encoding with product exactly-one, order distance encoding with product exactly-one, and order distance encoding with pairwise exactly-one. Table~\ref{tab:encoding_comparison} reports the recorded status, best upper bound (UB), and solver time. The timeout on the direct encoding for \texttt{curtis54} remains labeled as a timeout even though its recorded UB is 8.
+        The encoding experiment has four instances and three configurations: direct distance encoding with product exactly-one, order distance encoding with product exactly-one, and order distance encoding with pairwise exactly-one. Table~\ref{tab:encoding_comparison} reports the recorded status, the best upper bound (UB), and the solver time. Note that the direct encoding on \texttt{curtis54} is still labeled as a timeout although its recorded UB is 8.
 
         \begin{center}
         \centering
@@ -384,7 +384,7 @@ We present an exact SAT-based approach to the Cyclic Bandwidth Minimization Prob
         \end{tabular}
         \end{center}
 
-        Order plus product has a lower recorded runtime than direct plus product on all four instances. The faster of the two order exactly-one variants differs by instance. This is a small, single-run comparison and does not establish a general ranking. Figure~\ref{fig:encoding_runtime} visualizes the encoding runs.
+        Order + product is faster than direct + product on all four instances. Between the two order variants, the faster one depends on the instance. Since this is a small comparison with one run per configuration, it does not establish a general ranking. Figure~\ref{fig:encoding_runtime} visualizes the encoding runs.
 
         \begin{center}
 \begin{minipage}{\textwidth}
@@ -397,7 +397,7 @@ We present an exact SAT-based approach to the Cyclic Bandwidth Minimization Prob
 
     \subsection{Symmetry-Breaking and Heuristic Ablation}
 
-        The ablation compares weak, medium, and strong settings with runs that disable rotation symmetry breaking, reflection symmetry breaking, or the initial heuristic. All 24 runs prove optimality. For each instance, all six settings return the same best bandwidth; Table~\ref{tab:ablation_times} gives runtimes in seconds.
+        The ablation compares the weak, medium, and strong settings with runs that disable rotation symmetry breaking, reflection symmetry breaking, or the initial heuristic. All 24 runs prove optimality, and for each instance all six settings return the same best bandwidth. Table~\ref{tab:ablation_times} gives the runtimes in seconds.
 
         \begin{center}
 \begin{minipage}{\textwidth}
@@ -420,7 +420,7 @@ We present an exact SAT-based approach to the Cyclic Bandwidth Minimization Prob
         \end{minipage}
 \end{center}
 
-        Figure~\ref{fig:ablation_runtime} shows the same measurements. Runtime varies substantially across instances and settings; with four graphs and one run per setting, the results do not isolate a general causal effect for any single feature.
+        Figure~\ref{fig:ablation_runtime} shows the same measurements. The runtime varies a lot between instances and settings. With only four graphs and one run per setting, the results cannot isolate a general effect of any single feature.
 
         \begin{center}
 \begin{minipage}{\textwidth}
@@ -433,7 +433,7 @@ We present an exact SAT-based approach to the Cyclic Bandwidth Minimization Prob
 
     \subsection{Incumbent Progress}
 
-        Table~\ref{tab:ub_progress} summarizes the three saved incumbent-progress runs. The plot in Fig.~\ref{fig:ub_progress_plot} shows the incumbent trajectories available in the records. The \texttt{bcspwr03} run timed out with UB 10; the two other runs proved optimality.
+        Table~\ref{tab:ub_progress} summarizes the three saved incumbent-progress runs, and Fig.~\ref{fig:ub_progress_plot} shows the incumbent trajectories available in the records. The \texttt{bcspwr03} run timed out with UB 10, while the other two runs proved optimality.
 
         \begin{center}
         \centering
@@ -461,9 +461,11 @@ We present an exact SAT-based approach to the Cyclic Bandwidth Minimization Prob
 
     \subsection{Discussion and Limitations}
 
-        The methods batch includes large matrices up to $N=1104$, but its 600-second limit leaves many runs unresolved. In that batch, CaDiCaL proves optimality on 12 of 28 instances; CP-SAT on 10; CPLEX CP Optimizer on 7; CPLEX MIP on 1; and Gurobi on 6. The commercial solver error counts reflect the available local licenses and recorded model errors, so the status table should be read as an account of this environment and batch.
+        In the methods batch, CaDiCaL SAT times out on 16 of the 28 instances, and the largest matrices have $N=1104$ vertices. CPLEX MIP and Gurobi fail for a different reason. Most of their errors (24 of 27 for CPLEX MIP, all 21 for Gurobi) come from the size limit of the edition and the license we used, so those solvers did not really get to search on these instances. Because of this, we do not think this part of the table says much about how strong CPLEX or Gurobi are. It mostly shows what we could run in our environment.
 
-        The encoding and ablation results provide additional measurements on four smaller instances each. The ablation runs all prove the same optimum per instance, but the runtime differences vary across settings. Every configuration is represented by a single run, and no repeated-run statistical analysis is available. The plots and tables therefore describe this snapshot only; they do not establish statistically significant performance differences.
+        For the encodings, the direct one is the slowest in all four of our instances. It takes 573.36 seconds on \texttt{bcspwr02} and 85.40 seconds on \texttt{bcsstk01}, and on \texttt{curtis54} it stops at the 600-second limit. Order + product needs 21.89 and 9.96 seconds on the first two. So the order encoding looks much faster, at least on these four graphs. Maybe this comes from the number of clauses, because the direct encoding has about $|E| \cdot N^2$ and the order encoding about $|E| \cdot N + N^2$, but we did not check it.
+
+        The ablation is less clear. Removing reflection symmetry breaking does not slow down \texttt{bcsstk01} and \texttt{will57} (5.41 and 2.11 seconds, compared to 9.42 and 6.27 seconds for the strong setting), while on \texttt{curtis54} the strong setting is the fastest of the six. Similarly, the run without the heuristic is the fastest on \texttt{bcspwr02} but the slowest on \texttt{curtis54}. So we cannot say that one component always helps. Since each setting was run only once, part of these differences may simply come from the randomness of the solver, and we did not measure it.
 
 \section{Conclusion}
 
