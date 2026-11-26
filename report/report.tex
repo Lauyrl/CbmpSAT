@@ -273,18 +273,18 @@ We present an exact SAT-based approach to the Cyclic Bandwidth Minimization Prob
         \paragraph{Rotation Symmetry Breaking:}
         Since rotating a layout does not change its cyclic bandwidth, every labelling has $N$ equivalent rotations, and the solver would waste time exploring all of them. In order to remove these, we fix an arbitrary vertex $v_1$ to label 1:
         \begin{equation}
-            f(v_1) = 1 \iff x_1^1.
+            a(v_1) = 1 \iff x_1^1.
             \label{eq:sb_rotation}
         \end{equation}
         Any valid layout can be rotated so that $v_1$ is at position 1 without changing the cyclic bandwidth. Therefore, this constraint removes the rotationally equivalent assignments while still retaining an optimal one.
 
         \paragraph{Reflection Symmetry Breaking:}
-        After $f(v_1)=1$ is fixed, the only symmetry left is reflecting the cycle while keeping position 1 fixed, which maps label 1 to itself and label $k$ to $N+2-k$ for $2 \le k \le N$. In order to keep only one of the two orientations, we require
+        After $a(v_1)=1$ is fixed, the only symmetry left is reflecting the cycle while keeping position 1 fixed, which maps label 1 to itself and label $k$ to $N+2-k$ for $2 \le k \le N$. In order to keep only one of the two orientations, we require
         \begin{equation}
-            f(v_2) < f(v_N).
+            a(v_2) < a(v_N).
             \label{eq:sb_reflection_math}
         \end{equation}
-        Note that this requires $v_2$ and $v_N$ to be different vertices, which is true when $N \ge 3$. In the order encoding, $g_2^i$ is true if $f(v_2) \ge i$. Therefore, if $v_N$ is assigned label $i$, then $f(v_2)<i$ must hold, which is encoded as
+        Note that this requires $v_2$ and $v_N$ to be different vertices, which is true when $N \ge 3$. In the order encoding, $g_2^i$ is true if $a(v_2) \ge i$. Therefore, if $v_N$ is assigned label $i$, then $a(v_2)<i$ must hold, which is encoded as
         \begin{equation}
             x_N^i \implies \neg g_2^i
             \iff (\neg x_N^i \lor \neg g_2^i)
@@ -420,7 +420,7 @@ We present an exact SAT-based approach to the Cyclic Bandwidth Minimization Prob
         \end{minipage}
 \end{center}
 
-        Figure~\ref{fig:ablation_runtime} shows the same measurements. The runtime varies a lot between instances and settings. With only four graphs and one run per setting, the results cannot isolate a general effect of any single feature.
+        Figure~\ref{fig:ablation_runtime} shows the same measurements. The runtime varies considerably between instances and settings. With only four graphs and one run per setting, the results cannot isolate a general effect of any single feature.
 
         \begin{center}
 \begin{minipage}{\textwidth}
@@ -461,11 +461,11 @@ We present an exact SAT-based approach to the Cyclic Bandwidth Minimization Prob
 
     \subsection{Discussion and Limitations}
 
-        In the methods batch, CaDiCaL SAT times out on 16 of the 28 instances, and the largest matrices have $N=1104$ vertices. CPLEX MIP and Gurobi fail for a different reason. Most of their errors (24 of 27 for CPLEX MIP, all 21 for Gurobi) come from the size limit of the edition and the license we used, so those solvers did not really get to search on these instances. Because of this, we do not think this part of the table says much about how strong CPLEX or Gurobi are. It mostly shows what we could run in our environment.
+        In the methods batch, CaDiCaL SAT times out on 16 of the 28 instances, and the largest matrices have $N=1104$ vertices. CPLEX MIP and Gurobi fail for a different reason. Most of their errors (24 of 27 for CPLEX MIP, all 21 for Gurobi) come from the size limit of the edition and the license we used, so those solvers did not actually perform search on these instances. Because of this, these results do not reflect the underlying performance of CPLEX or Gurobi; they mainly reflect what could be run in our environment.
 
-        For the encodings, the direct one is the slowest in all four of our instances. It takes 573.36 seconds on \texttt{bcspwr02} and 85.40 seconds on \texttt{bcsstk01}, and on \texttt{curtis54} it stops at the 600-second limit. Order + product needs 21.89 and 9.96 seconds on the first two. So the order encoding looks much faster, at least on these four graphs. Maybe this comes from the number of clauses, because the direct encoding has about $|E| \cdot N^2$ and the order encoding about $|E| \cdot N + N^2$, but we did not check it.
+        For the encodings, the direct one is the slowest in all four of our instances. It takes 573.36 seconds on \texttt{bcspwr02} and 85.40 seconds on \texttt{bcsstk01}, and on \texttt{curtis54} it stops at the 600-second limit. Order + product needs 21.89 and 9.96 seconds on the first two. So the order encoding looks much faster, at least on these four graphs. This difference may stem from the clause count, as the direct encoding uses about $|E| \cdot N^2$ clauses compared to $|E| \cdot N + N^2$ for the order encoding, although this was not verified directly.
 
-        The ablation is less clear. Removing reflection symmetry breaking does not slow down \texttt{bcsstk01} and \texttt{will57} (5.41 and 2.11 seconds, compared to 9.42 and 6.27 seconds for the strong setting), while on \texttt{curtis54} the strong setting is the fastest of the six. Similarly, the run without the heuristic is the fastest on \texttt{bcspwr02} but the slowest on \texttt{curtis54}. So we cannot say that one component always helps. Since each setting was run only once, part of these differences may simply come from the randomness of the solver, and we did not measure it.
+        The ablation is less clear. Removing reflection symmetry breaking does not slow down \texttt{bcsstk01} and \texttt{will57} (5.41 and 2.11 seconds, compared to 9.42 and 6.27 seconds for the strong setting), while on \texttt{curtis54} the strong setting is the fastest of the six. Similarly, the run without the heuristic is the fastest on \texttt{bcspwr02} but the slowest on \texttt{curtis54}. So we cannot say that one component always helps. Since each setting was run only once, part of these differences may simply come from sensitivity of the solver's search heuristics to clause ordering, which was not measured directly.
 
 \section{Conclusion}
 
