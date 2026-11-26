@@ -268,7 +268,7 @@ We present an exact SAT-based approach to the Cyclic Bandwidth Minimization Prob
     \subsection{Symmetry breaking constraints}
 
         \paragraph{\textbf{Indexing convention.}}
-        The equations in this section use labels $1,\dots,N$, as in the encodings above, while the implementation indexes labels $0,\dots,N-1$. Adding one to every label does not change any cyclic distance, so the two conventions are equivalent.
+        The equations in this section use labels $1,\dots,N$, as in the encodings above, while the implementation indexes labels $0,\dots,N-1$. Adding $1$ to every label does not change any cyclic distance, so the two conventions are equivalent.
 
         \paragraph{\textbf{Rotation symmetry breaking.}}
         Since rotating an assignment does not change its cyclic bandwidth, every assignment has $N$ equivalent rotations, and the solver would waste time exploring all of them. To remove these, we fix an arbitrary anchor vertex $v_1$ to label 1:
