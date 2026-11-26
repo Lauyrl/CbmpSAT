@@ -35,15 +35,21 @@
 % Short title
 \shorttitle{A SAT solving approach to CBMP}    
 % Short author
-\shortauthors{Lê Nam Huy}  
-% Main title of the paper
-\title [mode = title]{A SAT solving approach to the Cyclic Bandwidth Minimization Problem}  
-% Author
-\author{Student: Lê Nam Huy-24021516}
+\shortauthors{Nguyen Hai An, Le Nam Huy, Nguyen Kha Dat}
+
+\title [mode = title]{A SAT solving approach to the Cyclic Bandwidth Minimization Problem}
+
+\author{Students: Nguyen Hai An, Le Nam Huy, Nguyen Kha Dat}
 % Abstract
 \begin{abstract}
 We present an exact SAT-based approach to the Cyclic Bandwidth Minimization Problem (CBMP) using direct and order label range encodings, pairwise and product at-most-one (AMO) encodings, incremental bound reduction, symmetry breaking, and a Reverse Cuthill--McKee initial upper bound. The local experiment snapshot contains 179 runs on Harwell-Boeing graphs, including 28 graph instances in a comparison of CaDiCaL SAT with CP-SAT, CPLEX MIP, CPLEX CP Optimizer, and Gurobi under a 600-second limit. CaDiCaL proves optimality on 12 of those 28 instances; the other method outcomes include timeouts and recorded license or model errors. Separate encoding and ablation studies cover four instances each, and all 24 ablation runs prove optimality. The results are single-run observations and do not support statistical or general performance claims.
 \end{abstract}
+\begin{keywords}
+    Cyclic bandwidth minimization \sep
+    SAT solving \sep
+    Incremental SAT \sep
+    Exact optimization
+\end{keywords}
 
 \maketitle
 
@@ -129,13 +135,13 @@ We present an exact SAT-based approach to the Cyclic Bandwidth Minimization Prob
                     \left(\neg x_u^k \vee \neg x_v^k\right)
                 \end{equation}
 
-                It uses no auxiliary variables but needs $\binom{N}{2} = O(N^2)$ binary clauses.
+                It uses no auxiliary variables but needs $\binom{N}{2} = O(N^2)$ binary clauses per label.
 
                 \item \textbf{Product:} arrange the $N$ variables in a $p \times q$ grid ($pq \ge N$, typically $p \approx q \approx \lceil\sqrt{N}\rceil$) and introduce row variables $r_1,\dots,r_p$ and column variables $c_1,\dots,c_q$. The variable in cell $(a,b)$ implies both its row and its column:
                     \begin{equation}
                         x_{a,b} \rightarrow r_a, \qquad x_{a,b} \rightarrow c_b.
                     \end{equation}
-                    Then $\text{AMO}(r_1,\dots,r_p)$ and $\text{AMO}(c_1,\dots,c_q)$ are enforced (recursively with the product encoding, or pairwise when small). Two true variables would have to differ in a row or a column, violating one of the two AMO constraints. This uses $O(\sqrt{N})$ auxiliary variables and $O(N)$ clauses, far fewer clauses than pairwise for large $N$.
+                    Then $\text{AMO}(r_1,\dots,r_p)$ and $\text{AMO}(c_1,\dots,c_q)$ are enforced (recursively with the product encoding, or pairwise when small). Two true variables would have to differ in a row or a column, violating one of the two AMO constraints. This uses $O(\sqrt{N})$ auxiliary variables and $O(N)$ clauses per label, far fewer clauses than pairwise for large $N$.
             \end{itemize}
 
 
@@ -267,6 +273,8 @@ We present an exact SAT-based approach to the Cyclic Bandwidth Minimization Prob
 
     \subsection{Symmetry breaking constraints}
 
+        \vspace{1em}
+
         \paragraph{\textbf{Indexing convention.}}
         The equations in this section use labels $1,\dots,N$, as in the encodings above, while the implementation indexes labels $0,\dots,N-1$. Adding $1$ to every label does not change any cyclic distance, so the two conventions are equivalent.
 
@@ -293,10 +301,10 @@ We present an exact SAT-based approach to the Cyclic Bandwidth Minimization Prob
         \end{equation}
         All benchmark instances in this report have $N \ge 3$, so this constraint can be applied to all of them.
 
-        \subsection{Heuristic initial upper bound}
-            To reduce the number of iterations required to reach the optimum, we start the search from an initial upper bound obtained from the RCM algorithm \citep{cuthill1969rcm}. RCM constructs a breadth-first search assignment starting from a pseudo-peripheral vertex, which is known to produce low envelope and bandwidth on sparse physical graphs.
+    \subsection{Heuristic initial upper bound}
+        To reduce the number of iterations required to reach the optimum, we start the search from an initial upper bound obtained from the RCM algorithm \citep{cuthill1969rcm}. RCM constructs a breadth-first search assignment starting from a pseudo-peripheral vertex, which is known to produce low envelope and bandwidth on sparse physical graphs.
 
-            The RCM assignment is evaluated via Eq.~(\ref{eq:cyclic_distance}) to obtain an initial bandwidth $\text{UB}_{\text{rcm}}$. If the heuristic assignment is valid, we set $\text{UB} = \text{UB}_{\text{rcm}}$; otherwise, the search starts from the trivial bound $\text{UB} = \left\lfloor \frac{N}{2} \right\rfloor + 1$.
+        The RCM assignment is evaluated via Eq.~(\ref{eq:cyclic_distance}) to obtain an initial bandwidth $\text{UB}_{\text{rcm}}$. If the heuristic assignment is valid, we set $\text{UB} = \text{UB}_{\text{rcm}}$; otherwise, the search starts from the trivial bound $\text{UB} = \left\lfloor \frac{N}{2} \right\rfloor + 1$.
 
 
 \section{Experiments}
@@ -323,25 +331,74 @@ We present an exact SAT-based approach to the Cyclic Bandwidth Minimization Prob
         \end{tabular}
         \end{center}
 
-        The environment and run specifications are given in Table~\ref{tab:specs}. There are no repeated trials, so runtimes are individual observations rather than averages.
+        The environment and run specifications are given in Table~\ref{tab:specs}; unless stated otherwise, the SAT configuration uses the default specifications listed there. There are no repeated trials, so runtimes are individual observations rather than averages.
 
         \begin{center}
         \centering
         \captionof{table}{Environment and run specifications.}
         \label{tab:specs}
-        \begin{tabular}{ll}
+        \begin{tabular}{lp{0.62\textwidth}}
         \toprule
         Processor & 12th Gen Intel(R) Core(TM) i5-12500H \\
         No. of cores & 12 \\
         RAM & 16 GB \\
         SAT solver & CaDiCaL 1.9.5 \\
         Library & PySAT \\
+        Default SAT configuration & Order encoding, product AMO, heuristic initial $\text{UB}$, rotation and reflection symmetry breaking \\
         Exact methods & CaDiCaL SAT, CP-SAT, CPLEX MIP, CPLEX CP Optimizer, Gurobi \\
         Time limit per run & 600 seconds \\
         Runs per configuration & 1 \\
         \bottomrule
         \end{tabular}
         \end{center}
+
+    \subsection{Benchmark Instances and SAT Results}
+
+        Each of the 28 Harwell-Boeing matrices is symmetrised and converted into an undirected graph (diagonal entries are ignored). The instances have between $N=9$ and $N=1104$ vertices and between 32 and 3720 edges. The lower bounds ($\text{LB}$) are taken from Ren et al.~\cite{Ren2020}, who compute them using the maximum vertex degree of each benchmark graph. Table~\ref{tab:sat_instances} lists the SAT solver results for every instance, under the default configuration.
+
+        \begin{center}
+        \centering
+        \small
+        \captionof{table}{SAT results on the 28 Harwell-Boeing instances, ordered by $N$. $\text{LB}$ is a known lower bound, $\text{UB}$ is the best bandwidth found within 600 seconds, and OPT means that $\text{UB}$ is proven optimal. Variables and clauses are recorded only for runs that finished.}
+        \label{tab:sat_instances}
+        \begin{tabular}{lrrrrlrrr}
+        \toprule
+        Instance & $N$ & $|E|$ & $\text{LB}$ & $\text{UB}$ & Status & Time (s) & Variables & Clauses \\
+        \midrule
+        \texttt{jgl009} & 9 & 32 & 4 & 4 & OPT & $<0.01$ & 225 & 897 \\
+        \texttt{rgg010} & 10 & 45 & 5 & 5 & OPT & $<0.01$ & 280 & 1181 \\
+        \texttt{jgl011} & 11 & 49 & 5 & 5 & OPT & $<0.01$ & 330 & 1458 \\
+        \texttt{can\_24} & 24 & 68 & 4 & 5 & OPT & 0.04 & 1416 & 6209 \\
+        \texttt{pores\_1} & 30 & 103 & 5 & 7 & OPT & 0.64 & 2160 & 10597 \\
+        \texttt{ibm32} & 32 & 90 & 6 & 9 & OPT & 0.81 & 2464 & 10293 \\
+        \texttt{bcspwr01} & 39 & 46 & 3 & 4 & OPT & 2.03 & 3588 & 13539 \\
+        \texttt{bcsstk01} & 48 & 176 & 6 & 12 & OPT & 17.62 & 5328 & 24481 \\
+        \texttt{bcspwr02} & 49 & 59 & 3 & 7 & OPT & 37.35 & 5537 & 20909 \\
+        \texttt{curtis54} & 54 & 124 & 8 & 8 & OPT & 29.32 & 6696 & 30279 \\
+        \texttt{will57} & 57 & 127 & 5 & 6 & OPT & 5.39 & 7467 & 33837 \\
+        \texttt{impcol\_b} & 59 & 240 & 9 & 15 & TIMEOUT & 600.10 & -- & -- \\
+        \texttt{ash85} & 85 & 219 & 5 & 9 & OPT & 527.21 & 16150 & 83426 \\
+        \texttt{nos4} & 100 & 247 & 3 & 10 & TIMEOUT & 600.12 & -- & -- \\
+        \texttt{bcspwr03} & 118 & 179 & 5 & 10 & TIMEOUT & 600.10 & -- & -- \\
+        \texttt{dwt\_234} & 234 & 300 & 5 & 22 & TIMEOUT & 600.12 & -- & -- \\
+        \texttt{bcsstk06} & 420 & 3720 & 14 & 47 & TIMEOUT & 600.83 & -- & -- \\
+        \texttt{bcsstk07} & 420 & 3720 & 14 & 47 & TIMEOUT & 600.78 & -- & -- \\
+        \texttt{impcol\_d} & 425 & 1193 & 8 & 65 & TIMEOUT & 600.88 & -- & -- \\
+        \texttt{can\_445} & 445 & 1682 & 6 & 118 & TIMEOUT & 600.93 & -- & -- \\
+        \texttt{494\_bus} & 494 & 586 & 5 & 77 & TIMEOUT & 600.62 & -- & -- \\
+        \texttt{dwt\_503} & 503 & 2762 & 12 & 60 & TIMEOUT & 600.84 & -- & -- \\
+        \texttt{dwt\_592} & 592 & 2256 & 7 & 41 & TIMEOUT & 601.01 & -- & -- \\
+        \texttt{662\_bus} & 662 & 906 & 5 & 110 & TIMEOUT & 600.79 & -- & -- \\
+        \texttt{nos6} & 675 & 1290 & 2 & 30 & TIMEOUT & 600.79 & -- & -- \\
+        \texttt{685\_bus} & 685 & 1282 & 6 & 82 & TIMEOUT & 601.22 & -- & -- \\
+        \texttt{can\_715} & 715 & 2975 & 52 & 138 & TIMEOUT & 600.59 & -- & -- \\
+        \texttt{sherman4} & 1104 & 1341 & 3 & 44 & TIMEOUT & 600.56 & -- & -- \\
+        \bottomrule
+        \end{tabular}
+        \end{center}
+
+        SAT proves optimality on 12 of the 28 instances, all with $N \le 85$, and times out on the other 16. On the seven smallest instances ($N \le 39$) the proven optimum equals the optimal cyclic bandwidth reported in the literature. Difficulty does not follow $N$ alone: \texttt{will57} ($N=57$) is solved in 5.39 seconds, whereas \texttt{impcol\_b} ($N=59$) times out. For the finished runs, the variable count grows as $O(N^2)$ ($N^2$ vertex/label variables, $N(N+1)$ order variables, and $N(p+q)$ auxiliary variables for the product encoding), specifically, it goes from 225 for \texttt{jgl009} ($N=9$) to 16150 for \texttt{ash85} ($N=85$). In agreement with Section 3, the number of clauses grows as $O(|E| \cdot N + N^2)$, and goes from 897 for \texttt{jgl009} ($N=9$, $|E|=32$) to 83426 for \texttt{ash85} ($N=85$, $|E|=219$).
+        On the 16 unresolved instances SAT only reports the best upper bound found within the limit. On the large graphs this bound stays far above the lower bound (for example 138 upper bound against 52 lower bound for \texttt{can\_715} and 44 upper bound against 3 lower bound for \texttt{sherman4}), so these entries should be read as upper bounds only.
 
     \subsection{Comparison with Exact Methods}
 
@@ -367,13 +424,13 @@ We present an exact SAT-based approach to the Cyclic Bandwidth Minimization Prob
         Among the 27 CPLEX MIP errors, 24 are recorded as model-size limits of the available edition and three as \texttt{INTEGER INFEASIBLE}. The 21 Gurobi errors all report a size-limited license. These limits come from the environment and the models, so they are not evidence that those methods are generally slower. Figure~\ref{fig:methods_runtime} shows the measured runtimes and separates timeout runs from completed runs. Runs with errors and no measured runtime are not drawn in the plot and are noted there.
 
         \begin{center}
-\begin{minipage}{\textwidth}
+        \begin{minipage}{\textwidth}
         \centering
         \includegraphics[width=\textwidth]{../results/methods/method_times}
         \captionof{figure}{Recorded runtime by method and instance. Hatched bars indicate timeout runs; records without measured runtime are noted in the plot.}
         \label{fig:methods_runtime}
         \end{minipage}
-\end{center}
+        \end{center}
 
     \subsection{Label Range and AMO Encoding Comparison}
 
@@ -407,25 +464,22 @@ We present an exact SAT-based approach to the Cyclic Bandwidth Minimization Prob
         Order + product is faster than direct + product on all four instances. Between the two AMO variants of the order encoding, the faster one depends on the instance. Since this is a small comparison with one run per configuration, it does not establish a general ranking. Figure~\ref{fig:encoding_runtime} visualizes the encoding runs.
 
         \begin{center}
-\begin{minipage}{\textwidth}
+        \begin{minipage}{\textwidth}
         \centering
         \includegraphics[width=0.9\textwidth]{../results/encodings/encoding_configs}
         \captionof{figure}{Runtime comparison of the three label range/AMO encoding configurations.}
         \label{fig:encoding_runtime}
         \end{minipage}
-\end{center}
+        \end{center}
 
     \subsection{Symmetry-Breaking and Heuristic Ablation}
 
-        The ablation compares weak, medium, and strong settings with runs that disable rotation symmetry breaking, reflection symmetry breaking, or the heuristic initial upper bound. Weak uses neither symmetry breaking nor the heuristic initial upper bound, medium adds rotation symmetry breaking, and strong adds reflection symmetry breaking and the heuristic initial upper bound. No rotation disables both rotation and reflection symmetry breaking (reflection relies on the fixed anchor), no reflection disables only reflection, and no heuristic disables only the heuristic initial upper bound. All 24 runs prove optimality, and for each instance all six settings return the same best bandwidth. Table~\ref{tab:ablation_times} gives the runtimes in seconds.
+        The ablation compares weak, medium, and strong settings with runs that disable rotation symmetry breaking, reflection symmetry breaking, or the heuristic initial upper bound. Weak uses neither symmetry breaking nor the heuristic initial upper bound, medium adds rotation symmetry breaking, and strong adds reflection symmetry breaking and the heuristic initial upper bound (the default configuration). No rotation disables both rotation and reflection symmetry breaking (reflection relies on the fixed anchor), no reflection disables only reflection, and no heuristic disables only the heuristic initial upper bound. All 24 runs prove optimality, and for each instance all six settings return the same best bandwidth. Table~\ref{tab:ablation_times} gives the runtimes in seconds.
 
         \begin{center}
-\begin{minipage}{\textwidth}
-        \centering
         \small
         \captionof{table}{Ablation runtimes in seconds; all entries have status OPT.}
         \label{tab:ablation_times}
-        \resizebox{\textwidth}{!}{%
         \begin{tabular}{lrrrrrr}
         \toprule
         Instance & Weak & Medium & Strong & No rotation & No reflection & No heuristic \\
@@ -435,21 +489,19 @@ We present an exact SAT-based approach to the Cyclic Bandwidth Minimization Prob
         \texttt{bcspwr02} & 104.92 & 45.91 & 37.41 & 106.28 & 42.59 & 27.88 \\
         \texttt{will57} & 61.68 & 2.70 & 6.27 & 48.24 & 2.11 & 4.53 \\
         \bottomrule
-        \end{tabular}%
-        }
-        \end{minipage}
-\end{center}
+        \end{tabular}
+        \end{center}
 
         Figure~\ref{fig:ablation_runtime} shows the same measurements. The runtime varies considerably between instances and settings. With only four graphs and one run per setting, the results cannot isolate a general effect of any single feature.
 
         \begin{center}
-\begin{minipage}{\textwidth}
+        \begin{minipage}{\textwidth}
         \centering
         \includegraphics[width=0.9\textwidth]{../results/ablation/per_level_times}
         \captionof{figure}{Runtime by ablation setting for the four instances.}
         \label{fig:ablation_runtime}
         \end{minipage}
-\end{center}
+        \end{center}
 
     \subsection{Incumbent Progress}
 
@@ -471,17 +523,19 @@ We present an exact SAT-based approach to the Cyclic Bandwidth Minimization Prob
         \end{center}
 
         \begin{center}
-\begin{minipage}{\textwidth}
+        \begin{minipage}{\textwidth}
         \centering
         \includegraphics[width=0.9\textwidth]{../results/ub-time/ub_vs_time}
         \captionof{figure}{Saved incumbent upper-bound progress over time.}
         \label{fig:ub_progress_plot}
         \end{minipage}
-\end{center}
+        \end{center}
 
     \subsection{Discussion and Limitations}
 
         The exact-methods batch includes large matrices up to $N=1104$, but its 600-second limit leaves many runs unresolved. CaDiCaL SAT times out on 16 of the 28 instances and proves optimality on 12, compared with 10 for CP-SAT, 7 for CPLEX CP Optimizer, 1 for CPLEX MIP, and 6 for Gurobi. CPLEX MIP and Gurobi fail for a different reason. Most of their errors (24 of 27 for CPLEX MIP, all 21 for Gurobi) come from the size limit of the edition and the license we used, so those methods did not actually perform search on these instances. Because of this, these results do not reflect the underlying performance of CPLEX or Gurobi; they mainly reflect what could be run in our environment, and the status table should be read as an account of this environment and batch.
+
+        The same instance recurs across experiment groups under the default configuration, which gives a rough view of run-to-run variation. \texttt{will57} is solved in 5.39, 4.13, 6.27, and 3.85 seconds in the exact-methods, encoding, ablation (strong), and incumbent-progress groups, respectively, and \texttt{bcsstk01} in 17.62, 9.96, and 9.42 seconds in the first three groups (all under the default configuration). \texttt{ash85} takes 527.21 seconds in the exact-methods group but 335.64 seconds in the incumbent-progress group. These runs differ by a factor of approximately 2, so differences of this magnitude between single runs may simply be attributed to run-to-run variation. As an example, runtimes of the direct versus order encodings for the label range constraint differ by 4.6 to 26 times on the three instances where the direct encoding finishes, a much larger difference than this variation.
 
         For the encodings, the direct one is the slowest in all four of our instances. It takes 573.36 seconds on \texttt{bcspwr02} and 85.40 seconds on \texttt{bcsstk01}, and on \texttt{curtis54} it stops at the 600-second limit. Order + product needs 21.89 and 9.96 seconds on the first two. So the order encoding looks much faster, at least on these four graphs. This difference may stem from the clause count, as the direct encoding needs $O(|E| \cdot N^2)$ clauses compared to $O(|E| \cdot N + N^2)$ for the order encoding, although this was not verified directly.
 
@@ -497,23 +551,36 @@ We present an exact SAT-based approach to the Cyclic Bandwidth Minimization Prob
 \nocite{*}
 \bibliography{references}
 
+\section*{Referenced Code}
+    The implementation of certain SAT encodings references the public repository \url{https://github.com/24020106NguyenTungDuong/RMLP-public}, which implements exact ILP and SAT approaches (basic and order SAT encodings with an incremental descending search) for the radio mean labelling problem.
+
 \section*{Data Availability}
-    The source code and benchmark collection are hosted at
-    \url{https://github.com/Lauyrl/CbmpSAT}. The experiment records used in this
-    report are stored in the following files:
+    The source code and benchmark collection are hosted at \url{https://github.com/Lauyrl/CbmpSAT}. The 28 Harwell-Boeing instances are taken from the Matrix Market collection at \url{https://math.nist.gov/MatrixMarket/data/Harwell-Boeing/}. The experiment records used in this report are stored in the following files:
     \begin{itemize}
     \item \path{results/methods/records.jsonl}
     \item \path{results/encodings/records.jsonl}
     \item \path{results/ablation/records.jsonl}
     \item \path{results/ub-time/records.jsonl}
     \end{itemize}
-    The derived CSV tables and CNSPlots figures are stored in the corresponding
-    group directories under \path{results/}.
+    The derived CSV tables and CNSPlots figures are stored in the corresponding group directories under \path{results/}.
 
-    From the repository root, the CSV files and plots can be regenerated from
-    the saved records without rerunning the solvers:
+    From the repository root, the CSV files and plots can be regenerated from the saved records without rerunning the solvers:
     \begin{verbatim}
     python experiments.py all --rebuild-only
     \end{verbatim}
+
+\section*{Member contribution}
+
+    \begin{center}
+    \begin{tabular}{lll}
+    \toprule
+    \textbf{Name} & \textbf{MSV} & \textbf{Contribution} \\
+    \midrule
+    Nguyen Hai An & & \\
+    Le Nam Huy & & \\
+    Nguyen Kha Dat & & \\
+    \bottomrule
+    \end{tabular}
+    \end{center}
 
 \end{document}
