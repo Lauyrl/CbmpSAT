@@ -1,7 +1,10 @@
-\documentclass[a4paper]{cas-sc}
+\PassOptionsToPackage{expansion=false}{microtype}
+\PassOptionsToPackage{numbers}{natbib}
 
-\usepackage[authoryear,longnamesfirst]{natbib}
+\documentclass[a4paper,fleqn]{cas-sc}
+
 \usepackage[utf8]{inputenc}
+\usepackage[numbers]{natbib}
 \usepackage{enumitem}
 \usepackage{graphicx}
 \usepackage{amsmath}
@@ -10,6 +13,7 @@
 \usepackage{float}
 \usepackage{placeins}
 \usepackage{caption}
+\captionsetup{hypcap=false}
 \usepackage{booktabs}
 \usepackage{algorithm}
 \usepackage{algpseudocode}
@@ -31,134 +35,184 @@
 % Short title
 \shorttitle{A SAT solving approach to CBMP}    
 % Short author
-\shortauthors{Lê Nam Huy}  
-% Main title of the paper
-\title [mode = title]{A SAT solving approach to the Cyclic Bandwidth Minimization Problem}  
-% Author
-\author{Student: Lê Nam Huy\\24021516}
+\shortauthors{Nguyen Hai An, Le Nam Huy, Nguyen Kha Dat}
+
+\title [mode = title]{A SAT solving approach to the Cyclic Bandwidth Minimization Problem}
+
+\author{Students: Nguyen Hai An, Le Nam Huy, Nguyen Kha Dat}
 % Abstract
 \begin{abstract}
-~
+We present an exact SAT-based approach to the Cyclic Bandwidth Minimization Problem (CBMP) using direct and order label range encodings, pairwise and product at-most-one (AMO) encodings, incremental bound reduction, symmetry breaking, and a Reverse Cuthill--McKee initial upper bound. The local experiment snapshot contains 179 runs on Harwell-Boeing graphs, including 28 graph instances in a comparison of CaDiCaL SAT with CP-SAT, CPLEX MIP, CPLEX CP Optimizer, and Gurobi under a 600-second limit. CaDiCaL proves optimality on 12 of those 28 instances; the other method outcomes include timeouts and recorded license or model errors. Separate encoding and ablation studies cover four instances each, and all 24 ablation runs prove optimality. The results are single-run observations and do not support statistical or general performance claims.
 \end{abstract}
+\begin{keywords}
+    Cyclic bandwidth minimization \sep
+    SAT solving \sep
+    Incremental SAT \sep
+    Exact optimization
+\end{keywords}
 
 \maketitle
 
 % Main text
 \section{Introduction}
-The Bandwidth Minimization Problem (BMP) is a well-known combinatorial optimization problem in graph theory that seeks to assign labels to the vertices of a graph such that the maximum difference between the labels of adjacent vertices is minimized \cite{wang:hal-01166658}. This problem has attracted considerable attention due to its theoretical significance and its applications in areas such as data storage, network survivability, industrial electromagnetic, saving large hypertext media \cite{wang:hal-01166658}, finite element methods, large-scale power transmission systems, circuit design, chemical kinetics, numerical geophysics \cite{PINANA2004200}.
+    The Bandwidth Minimization Problem (BMP) is a well-known combinatorial optimization problem in graph theory that seeks to assign labels to the vertices of a graph such that the maximum difference between the labels of adjacent vertices is minimized \cite{wang:hal-01166658}. This problem has attracted considerable attention due to its theoretical significance and its applications in areas such as data storage, network survivability, industrial electromagnetic, saving large hypertext media \cite{wang:hal-01166658}, finite element methods, large-scale power transmission systems, circuit design, chemical kinetics, numerical geophysics \cite{PINANA2004200}.
 
-A natural extension of BMP is the Cyclic Bandwidth Minimization Problem (CBMP), in which each label is assigned to vertices of a cyclic graph. While CBMP shares many similarities with BMP, the cyclic nature of the labeling introduces additional complexities that distinguish it from the classical problem and require specialized solution techniques. Over the years, researchers have proposed various approaches to solve BMP and CBMP. Early studies focused on finding exact bandwidths or lower bounds for general graphs. Eventually, exact algorithms were developed that include the implementation of branch-and-bound \cite{10.1007/978-3-642-37798-3_13}, the obtaining of lower bounds using distance- and degree-related parameters \cite{ZHOU2000357}, or the derivation of sharp upper-bounds by adding new edges \cite{CHAN2008131}. Using these theoretical studies, practical solutions like tabu search \cite{RODRIGUEZTELLO201517} and iterated three-phases search (ITPS) \cite{REN765302} have been proposed and proven to be state-of-the-art for solving CBMP.
-% Exact algorithms, including branch-and-bound methods and integer programming formulations, can produce optimal solutions but often suffer from high computational costs due to the combinatorial explosion of the search space. Consequently, numerous heuristic and metaheuristic approaches, such as genetic algorithms, tabu search, variable neighborhood search, and ant colony optimization, have been developed to obtain high-quality solutions within reasonable computational times. Although these methods have demonstrated promising performance, they may not always guarantee optimality.
+    A natural extension of BMP is the Cyclic Bandwidth Minimization Problem (CBMP), in which each label is assigned to vertices of a cyclic graph. While CBMP shares many similarities with BMP, the cyclic nature of the labeling introduces additional complexities that distinguish it from the classical problem and require specialized solution techniques. Over the years, researchers have proposed various approaches to solve BMP and CBMP. Early studies focused on finding exact bandwidths or lower bounds for general graphs. Eventually, exact algorithms were developed that include the implementation of branch-and-bound \cite{10.1007/978-3-642-37798-3_13}, the obtaining of lower bounds using distance- and degree-related parameters \cite{ZHOU2000357}, or the derivation of sharp upper-bounds by adding new edges \cite{CHAN2008131}. Using these theoretical studies, practical solutions like tabu search \cite{RODRIGUEZTELLO201517} and iterated three-phases search (ITPS) \cite{REN765302} have been proposed and proven to be state-of-the-art for solving CBMP.
+    % Exact algorithms, including branch-and-bound methods and integer programming formulations, can produce optimal solutions but often suffer from high computational costs due to the combinatorial explosion of the search space. Consequently, numerous heuristic and metaheuristic approaches, such as genetic algorithms, tabu search, variable neighborhood search, and ant colony optimization, have been developed to obtain high-quality solutions within reasonable computational times. Although these methods have demonstrated promising performance, they may not always guarantee optimality.
 
-In this report, we want to investigate and contribute another solution to solve CBMP - Iterative Boolean Satisfiability for decreasing upper bound. We will first lay out how the problem can be represented as a satisfiability problem and how to encode them. Secondly, we will present how to lower the upper bound through implementations of iterative SAT. Finally we will assess its performance of the proposed algorithm by running it through benchmark instances and make comparisons with tabu search and ITPS.
+    This report studies an exact SAT approach to CBMP. It describes direct and order encodings for the label range constraint, pairwise and product encodings for at-most-one (AMO) constraints, incremental reduction of the bandwidth bound, rotation and reflection symmetry breaking, and a heuristic initial upper bound. The experiments compare the SAT approach with CP-SAT, CPLEX MIP, CPLEX CP Optimizer, and Gurobi, and evaluate encoding choices and ablations. The current results are from the recorded benchmark runs; this report does not claim comparisons with tabu search or ITPS.
 
-The remainder of the paper is written as follows. In Section 2, we give a formal definition on CBMP and SAT. In Section 3, we explore several algorithm based on iterative SAT to approach said problem. In Section 4, we report experimental setups, results and comparisons between different datasets, solvers and solutions. Conclusions are then drawn in Section 5.
+    The remainder of the paper is organized as follows. Section 2 introduces a proper definition of CBMP and SAT. Section 3 presents the method to our exact SAT approach. Section 4 describes experiments pertaining tools, datasets and their results. Section 5 concludes and summarizes the outcome extracted.
 
-% Among exact solution approaches, Boolean Satisfiability (SAT) solving has emerged as a powerful alternative for tackling difficult combinatorial optimization problems. Advances in modern SAT solvers, including conflict-driven clause learning, efficient branching heuristics, and sophisticated preprocessing techniques, have significantly improved their ability to handle large and complex problem instances. By encoding CBMP as a satisfiability problem, the extensive capabilities of state-of-the-art SAT solvers can be leveraged to explore the solution space efficiently and potentially overcome some of the scalability limitations associated with traditional exact methods. This makes SAT-based approaches an attractive direction for solving CBMP.
+    % Among exact solution approaches, Boolean Satisfiability (SAT) solving has emerged as a powerful alternative for tackling difficult combinatorial optimization problems. Advances in modern SAT solvers, including conflict-driven clause learning, efficient branching heuristics, and sophisticated preprocessing techniques, have significantly improved their ability to handle large and complex problem instances. By encoding CBMP as a satisfiability problem, the extensive capabilities of state-of-the-art SAT solvers can be leveraged to explore the solution space efficiently and potentially overcome some of the scalability limitations associated with traditional exact methods. This makes SAT-based approaches an attractive direction for solving CBMP.
 
-% The importance of CBMP extends beyond theoretical graph optimization. In practice, cyclic arrangements naturally arise in applications such as cyclic scheduling, communication network design, round-robin tournament organization, production planning, and the placement of components in ring-based architectures. For example, minimizing cyclic distances between strongly connected entities can improve communication efficiency, reduce transmission delays, and optimize resource utilization. As systems become increasingly complex, effective methods for solving CBMP can contribute to more efficient designs and improved operational performance across a wide range of domains.
+    % The importance of CBMP extends beyond theoretical graph optimization. In practice, cyclic arrangements naturally arise in applications such as cyclic scheduling, communication network design, round-robin tournament organization, production planning, and the placement of components in ring-based architectures. For example, minimizing cyclic distances between strongly connected entities can improve communication efficiency, reduce transmission delays, and optimize resource utilization. As systems become increasingly complex, effective methods for solving CBMP can contribute to more efficient designs and improved operational performance across a wide range of domains.
 
 \section{Background}
 
     \subsection{Problem Definition}
-    Let $G(V,E)$ be a finite undirected graph with vertex set $V$ of size $n$, $C_n$ be a cyclic graph with $n$ vertices and an embedding (also called labelling or arrangement) $\varphi$ of $G$ in $C_n$ be one-on-one mapping from $V$ to $V$. The cyclic bandwidth is then given as:
-    \begin{center}
-        $C_b(G, \varphi) = \max\limits_{(u,v)\in E}{|\varphi(u)-\varphi(v)|_n}$
-    \end{center}
-    with $\varphi(u)$ being a label assigned to vertex $u$ and $|x|_n$ equaling the minimum cycle distance, or $min(|x|, n-|x|)$.
+        Let $G(V,E)$ be a finite undirected graph with vertex set $V$ of size $N$, $C_N$ be a cyclic graph with $N$ vertices and an embedding (also called labeling or arrangement) $\varphi$ of $G$ in $C_N$ be one-on-one mapping from $V$ to $V$. The cyclic bandwidth is then given as:
+        \begin{center}
+            $C_b(G, \varphi) = \max\limits_{(u,v)\in E}{|\varphi(u)-\varphi(v)|_N}$
+        \end{center}
+        with $\varphi(u)$ being a label assigned to vertex $u$ and $|x|_N$ equaling the minimum cycle distance, or $\min(|x|, N-|x|)$.
 
-    The Cyclic Bandwidth Minimization Problem (CBMP)'s objective is to find an embedding $\varphi^* \in Q$ that minimizes the cyclic bandwidth of the graph, where $Q$ is the set of all possible labellings.
+        The Cyclic Bandwidth Minimization Problem (CBMP)'s objective is to find an embedding $\varphi^* \in Q$ that minimizes the cyclic bandwidth of the graph, where $Q$ is the set of all possible labelings. In other words, we seek an arrangement of vertices on the cyclic graph such that the \textbf{largest cyclic distance} between any two connected vertices is minimized.
 
-    \begin{figure}
-        \centering
-        \includegraphics[width=0.8\linewidth]{figs/fig2.1.png}
-        \caption{An example illustrating the problem. (a) contains a finite undirected graphs with vertices from $a$ to $j$ and a labelling to those vertices. (b) contains a cycle graph that has said vertices embedded in and arranged in a clockwise order. The cyclic bandwidth of this embedding $C_b(G,\varphi)$ equals to 4, defined by the edges $(d, e), (e, g)$ and $(i,j)$}
-        \label{fig:2.1}
-    \end{figure}
-    \subsection{Boolean Satisfaction}
-    Boolean satisfiability problem, also commonly known as SAT, is a fundamental problem in logic and computer science. It asks whether there exists an assignment of True or False to a Boolean formula's variables to make said formula evaluate to True, in which case the formula is considered to be \textit{satisfiable}. These formulas are built from variables and operators (containing AND, OR, NOT and more) and often written in conjuctive normal form (CNF) - conjuction of several clauses, which are disjunction of literals.
-\begin{itemize}
-    \item \textbf{INPUT:} A propositional logic formula, represented in the form of conjunctive normal form.
-    \item \textbf{OUTPUT:}
-    \begin{itemize}
-        \item \textit{SAT} if there exists an assignment of truth values for each literals of the formula so that the original CNF become true.
-        \item \textit{UNSAT} if for all possible assignments of truth values for each literals of the formula, it always become false.
-    \end{itemize}
-\end{itemize}
+        \begin{figure}
+            \centering
+            \includegraphics[width=0.8\linewidth]{figs/fig2.1.png}
+            \caption{An example illustrating the problem. (a) contains a finite undirected graphs with vertices from $a$ to $j$ and a labeling to those vertices. (b) contains a cycle graph that has said vertices embedded in and arranged in a clockwise order. The cyclic bandwidth of this embedding $C_b(G,\varphi)$ equals to 4, defined by the edges $(d, e), (e, g)$ and $(i,j)$}
+            \label{fig:2.1}
+        \end{figure}
 
-For example:
-\begin{center}
-    \(\displaystyle F_1 = \neg x_1\wedge x_2\)
-    \\*
-    \(\displaystyle F_2 = \neg x_1 \wedge x_1\)
-\end{center}
-The formula $F_1$ becomes true with $x_1$ = false, $x_2$ = true, therefore $F_1$ is SAT. On the other hand, $F_2$ is always false, irrespective of any possible $(x_1, x_2)$ combination, thus making it UNSAT.
+        \subsection{Boolean Satisfiability}
+            Boolean satisfiability problem, also commonly known as SAT, is a fundamental problem in logic and computer science. It asks whether there exists an assignment of True or False to a Boolean formula's variables to make said formula evaluate to True, in which case the formula is considered to be \textit{satisfiable}. These formulas are built from variables and operators (containing AND, OR, NOT and more) and often written in conjuctive normal form (CNF) - conjuction of several clauses, which are disjunction of literals.
+                        
+            \begin{itemize}
+                \item \textbf{INPUT:} A propositional logic formula, represented in the form of conjunctive normal form.
+                \item \textbf{OUTPUT:}
+                \begin{itemize}
+                    \item \textit{SAT} if there exists an assignment of truth values for each literals of the formula so that the original CNF become true.
+                    \item \textit{UNSAT} if for all possible assignments of truth values for each literals of the formula, it always become false.
+                \end{itemize}
+            \end{itemize}
+
+            For example:
+            \begin{center}
+                \(\displaystyle F_1 = \neg x_1\wedge x_2\)
+                \\*
+                \(\displaystyle F_2 = \neg x_1 \wedge x_1\)
+            \end{center}
+            The formula $F_1$ becomes true with $x_1$ = false, $x_2$ = true, therefore $F_1$ is SAT. On the other hand, $F_2$ is always false, irrespective of any possible $(x_1, x_2)$ combination, thus making it UNSAT.
+
 \section{Method}
 
     \subsection{Label assignment constraint}
-        Each vertex $u$ corresponds to $N$ label variables $X_u=\left\{x_u^1,x_u^2,\dots,x_u^N\right\}$, where $x_u^k$ is true if vertex $u$ is assigned label $k$. Given $N$ vertices and $N$ unique labels, a valid assignment is one where \textit{each label $k$ is assigned to Exactly One vertex}, which can be expressed as the conjunction of an At Most One (AMO) constraint and an At Least One (ALO) constraint upon the sets of variables corresponding to each label $k$. Specifically, let $X^k = \{x_1^k, x_2^k, \dots, x_N^k\}$ be the variables representing the assignment of label $k$ to each vertex. For each $k$, the constraint is encoded as $\text{AMO}(X^k) \wedge \text{ALO}(X^k)$.
+        Each vertex $u$ is associated with $N$ label variables:
+
+        \begin{center}
+            \(\displaystyle
+            X_u=\left\{x_u^1,x_u^2,\dots,x_u^N\right\}
+            \)
+        \end{center}
+        
+        where $x_u^k$ is true if and only if vertex $u$ is assigned label $k$. Given $N$ vertices and $N$ distinct labels, a valid assignment requires that each label $k$ be assigned to exactly one vertex. This Exactly One (EXO) constraint can be expressed as the conjunction of an At Most One (AMO) constraint and an At Least One (ALO) constraint over the set of variables corresponding to label k $k$. Specifically, let:
+
+        \begin{center}
+            \(\displaystyle
+            X^k = \{x_1^k, x_2^k, \dots, x_N^k\}
+            \)
+        \end{center}
+        
+         denote the variables representing the assignment of label $k$ to the vertices. For each $k$, the EXO constraint is encoded as:
+         
+         \begin{center}
+             \(\displaystyle
+             \text{AMO}(X^k) \wedge \text{ALO}(X^k)
+             \)
+         \end{center}
 
         \subsubsection{At Least One (ALO)}
-            \noindent A single clause can be used to express $\text{ALO}(X^k)$:
-            \begin{equation}
+            A single clause can be used to express $\text{ALO}(X^k)$:
+
+            \begin{center}
+                \(\displaystyle
                 \text{ALO}(X^k) = \bigvee_{u=1}^{N} x_u^k.
-            \end{equation}
+                \)
+            \end{center}
 
         \subsubsection{At Most One (AMO)}
-            \noindent This report discusses 2 ways to encode $\text{AMO}(X^k)$:
+            This section discusses two different approaches to encode $\text{AMO}(X^k)$:
             \begin{itemize}
-                \item \textbf{Pairwise:} explicitly encode that if one variable is true, every other variable must be false:
-                
-                \begin{equation}
+                \item \textbf{Pairwise:} We explicitly encode the constraint that if one variable is true, then every other variable must be false:
+
+                \begin{center}
+                \(\displaystyle
                     \text{AMO}(X^k) = \bigwedge_{u=1}^{N-1}
                     \bigwedge_{v=u+1}^{N}
                     \left(x_u^k \rightarrow \neg x_v^k\right)
-                \end{equation}
+                    \)
+                \end{center}
 
-                Or in CNF:
-                \begin{equation}
+                Or, in CNF:
+                \begin{center}
+                    \(\displaystyle
                     \text{AMO}(X^k) = \bigwedge_{u=1}^{N-1}
                     \bigwedge_{v=u+1}^{N}
                     \left(\neg x_u^k \vee \neg x_v^k\right)
-                \end{equation}
+                    \)
+                \end{center}
+                
+                This encoding uses no auxiliary variables but requires $\binom{N}{2} = O(N^2)$ binary clauses per label.
 
-                It uses no auxiliary variables but needs $\binom{N}{2} = O(N^2)$ binary clauses.
+                \item \textbf{Product:} We arrange the $N$ variables in a $p \times q$ grid ($pq \ge N$, typically $p \approx q \approx \lceil\sqrt{N}\rceil$) and introduce row variables $r_1,\dots,r_p$ and column variables $c_1,\dots,c_q$. A variable located in cell $(a,b)$ implies both its row and its column variables:
 
-                \item \textbf{Product:} arrange the $N$ variables in a $p \times q$ grid ($pq \ge N$, typically $p \approx q \approx \lceil\sqrt{N}\rceil$) and introduce row variables $r_1,\dots,r_p$ and column variables $c_1,\dots,c_q$. The variable in cell $(a,b)$ implies both its row and its column:
-                    \begin{equation}
-                        x_{a,b} \rightarrow r_a, \qquad x_{a,b} \rightarrow c_b.
-                    \end{equation}
-                    Then $\text{AMO}(r_1,\dots,r_p)$ and $\text{AMO}(c_1,\dots,c_q)$ are enforced (recursively with the product encoding, or pairwise when small). Two true variables would have to differ in a row or a column, violating one of the two AMO constraints. This uses $O(\sqrt{N})$ auxiliary variables and $O(N)$ clauses, far fewer clauses than pairwise for large $N$.
+                \begin{center}
+                \(\displaystyle
+                x_{a,b} \rightarrow r_a \qquad \text{and} \qquad x_{a,b} \rightarrow c_b
+                \)
+                \end{center}    
+                    We then enforce $\text{AMO}(r_1,\dots,r_p)$ and $\text{AMO}(c_1,\dots,c_q)$ recursively using the product encoding (or pairwise encoding for small instances). If two variables are assigned $True$, they must differ in either their row or column index, thereby violating one of the two AMO constraints. This encoding uses $O(\sqrt{N})$ auxiliary variables and $O(N)$ clauses per label, which is significantly fewer than the pairwise encoding for large $N$.
             \end{itemize}
 
 
     \subsection{Label range constraint}
-        Given a graph $G(V,E)$ with $|V|=N$ and a bandwidth upper bound $\text{UB}$, we consider an assignment $A$ valid if every edge satisfies a bandwidth constraint, namely, the distance between the labels of its vertices must be less than UB.
+        Given a graph $G(V,E)$ with $|V|=N$ and a bandwidth upper bound $\text{UB}$, a labeling $\varphi$ is valid if every edge satisfies a bandwidth constraint; that is, the cyclic distance between the labels of its vertices must be less than $\text{UB}$.
         
-        Let $a(u)=i$ and $a(v)=j$. In CBMP, labels lie on a circle and the distance between two labels is:
-        \begin{equation}
-            d(i,j) = \min\bigl(|i-j|,\; N-|i-j|\bigr).
-        \end{equation}
-        An edge $(u,v)\in E$ satisfies the bandwidth constraint if $d(i,j) \le \text{UB}-1$ (equivalently, $d(i,j) < \text{UB}$). The general approach to encoding this constraint involves fixing one vertex's label and applying a \textbf{label range constraint} on the other vertex. Specifically, for each $i$, if $a(u)=i$, then $a(v) \in [i-\text{UB}+1,\, i+\text{UB}-1] \bmod N$.
+        Let $\varphi(u)=i$ and $\varphi(v)=j$. In CBMP, labels lie on a circle and the distance between two labels is:
+        \begin{center}
+            \(\displaystyle
+        \label{eq:cyclic_distance}
+            d(i,j) = |i-j|_N = \min\bigl(|i-j|,\; N-|i-j|\bigr)
+        \)
+        \end{center}
         
-        \vspace{1em}
+        An edge $(u,v)\in E$ satisfies the bandwidth constraint if $d(i,j) \le \text{UB}-1$ (equivalently, $d(i,j) < \text{UB}$). The general approach to encoding this constraint is to fix the label of one vertex and applying a \textbf{label range constraint} on the other vertex. Specifically, for each $i$, if $\varphi(u)=i$, then $\varphi(v) \in [i-\text{UB}+1,\, i+\text{UB}-1] \bmod N$.
 
-        Note that since $d(i,j)$ is symmetric, applying these constraints in one direction ($u \to v$) is sufficient. 
+        Note that since $d(i,j) = d(j,i)$, it is sufficient to encode the constraint in one direction ($u \to v$) for each edge. 
 
-        \paragraph{\textbf{Direct encoding.}}
-            The direct encoding explicitly forbids every pair of labels that are too far apart. Specifically, for each edge $(u,v)\in E$ and all assignments $a(u)=i$ and $a(v)=j$:
-            \begin{equation}
-                \neg x_u^i \vee \neg x_v^j \qquad \forall \; 1 \le i,j \le N,\; \text{if} \; d(i,j) \geq \text{UB}.
-            \end{equation}
-
-            \vspace{1em}
-
-            Note that this encoding additionally requires $\text{AMO}(X_u) \wedge \text{ALO}(X_u)$ clauses for every vertex $u$, to ensure that each vertex is assigned exactly one label.
-
-        \paragraph{\textbf{Order encoding.}}
-            The order encoding introduces $N+1$ auxiliary variables \textit{per vertex}: $G_u=\{g_u^1, g_u^2,\dots, g_u^N, g_u^{N+1}\}$, where $g_u^k$ is true if $a(u) \ge k$. The variable $g_v^k$ expresses a left bound $a(v) \geq k$, while its negation $\neg g_v^k$ expresses a right bound $a(v) < k$.
+        \subsubsection{Direct Encoding}
+            The direct encoding explicitly forbids every pair of labels that are too far apart. Specifically, for each edge $(u,v)\in E$ and all assignments $\varphi(u)=i$ and $\varphi(v)=j$:
             
-            For example, with $N=6$ and $a(u)=3$:
+            \begin{center}
+                \(\displaystyle
+                \neg x_u^i \vee \neg x_v^j \qquad \forall \; 1 \le i,j \le N,\; \text{if} \; d(i,j) \geq \text{UB}.
+                \)
+            \end{center}
+
+            This encoding additionally requires $\text{AMO}(X_u)$ \text{and} $\text{ALO}(X_u)$ constraints for every vertex $u$ to ensure that exactly one label is assigned to each vertex.
+
+        \subsubsection{Order Encoding}
+            The order encoding introduces $N+1$ auxiliary variables \textit{for each vertex}: 
+
+            \begin{center}
+                \(\displaystyle
+                G_u=\{g_u^1, g_u^2,\dots, g_u^N, g_u^{N+1}\}
+                \)
+            \end{center}
+            
+            where $g_u^k$ is true if $\varphi(u) \ge k$. The variable $g_v^k$ expresses a left bound $\varphi(v) \geq k$, while its negation $\neg g_v^k$ expresses a right bound $\varphi(v) < k$. For example, with $N=6$ and $\varphi(u)=3$:
             \begin{center}
                 \begin{tabular}{c|ccccccc}
                     label $k$ & 1                   & 2                   & 3                   & 4 & 5 & 6 & 7  \\ \hline
@@ -167,65 +221,98 @@ The formula $F_1$ becomes true with $x_1$ = false, $x_2$ = true, therefore $F_1$
                 \end{tabular}
             \end{center}
 
-            \noindent This encoding is composed of 2 components: the consistency clauses and the biconditional clauses.
+            This encoding consists of two components: the consistency clauses and the biconditional clauses.
 
-            \noindent \textit{The consistency clauses:}
-            \begin{equation}
-                g_u^{k+1} \rightarrow g_u^{k} \qquad \forall \; u\in V,\; 1 \le k < N
-            \end{equation}
-            In combination with the constants $g_u^1 = \text{true}$ and $g_u^{N+1} = \text{false}$, these clauses enforce that if $a(u)=k$, then $G_u$ is a series of true variables starting from the constant $g_u^1$ up until $g_u^k$, followed by a series of false variables, bounded by $g_u^{N+1}$.
+            \begin{itemize}
+                \item Consistency clauses:
+                \begin{center}
+                    \(\displaystyle
+                    g_u^{k+1} \rightarrow g_u^{k} \qquad \forall \; u\in V,\; 1 \le k < N
+                    \)
+                \end{center}    
+                In combination with the constants $g_u^1 = \text{true}$ and $g_u^{N+1} = \text{false}$, these clauses enforce that if $\varphi(u)=k$, then $G_u$ is a series of true variables starting from the constant $g_u^1$ up until $g_u^k$, followed by a series of false variables, bounded by $g_u^{N+1}$.
 
-            \vspace{1em}
+                \item Biconditional clauses:
 
-            \noindent \textit{The biconditional clauses:}
-            \begin{equation}
-                x_u^k \leftrightarrow (g_u^k \wedge \neg g_u^{k+1}) \qquad \forall \; u\in V,\; 1 \le k \le N
-            \end{equation}
-            These clauses enforce the relationship between the auxiliary order variables and the label variables.
+                \begin{center}
+                                    \(
+                \displaystyle
+                                x_u^k \leftrightarrow (g_u^k \wedge \neg g_u^{k+1}) \qquad \forall \; u\in V,\; 1 \le k \le N
+                \)
+                \end{center}
 
-            \vspace{1em}
+                These clauses enforce the relationship between the auxiliary order variables and the label variables.
+            \end{itemize}
 
-            Note that, by the \textit{biconditional clauses}, $x_u^k$ is true exactly when $g_u^k$ is true \textit{and} $g_u^{k+1}$ is false, which only happens at the point where $G_u$ switches from true to false. Since the constants $g_u^1 = \text{true}$ and $g_u^{N+1} = \text{false}$ guarantee that a switch exists at some point between $k=1$ and $k=N$, and the \textit{consistency clauses} guarantee that there is only one switch, it follows that exactly one $x_u^k$ is true for each vertex $u$. Therefore, the order encoding also ensures that every vertex is assigned exactly one label as a side effect.
-
-            \vspace{1em}
-
+            Note that, by the \textit{biconditional clauses}, $x_u^k$ is true exactly when $g_u^k$ is true \textit{and} $g_u^{k+1}$ is false, which only happens at the point where $G_u$ changes from true to false. Since the constants $g_u^1 = \text{true}$ and $g_u^{N+1} = \text{false}$ guarantee the existence of a unique transition point between true and false values between $k=1$ and $k=N$, and the \textit{consistency clauses} guarantee that such transition can only happen once, it follows that exactly one $x_u^k$ is true for each vertex $u$. Hence, the order encoding inherently guarantees that every vertex is assigned exactly one label.
+            
             With this encoding, for each edge $(u,v)\in E$ and each label $i$ of $u$, and depending on whether the range of valid labels for $v$ wraps around the circle, the label range constraint can be written as follows:
-            \begin{align}
-                \intertext{\hspace*{\parindent}no wrap $(\text{UB} \le i \le N-\text{UB}+1)$:}
-                x_u^i &\rightarrow g_v^{i-\text{UB}+1} \\
-                x_u^i &\rightarrow \neg g_v^{i+\text{UB}} \\
-                \intertext{\hspace*{\parindent}wraps left $(1 \leq i < \text{UB})$:}
-                x_u^i &\rightarrow (\neg g_v^{i+\text{UB}} \vee g_v^{N+i-\text{UB}+1}) \\
-                \intertext{\hspace*{\parindent}wraps right $(N-\text{UB}+1 < i \leq N)$:}
-                x_u^i &\rightarrow (\neg g_v^{i+\text{UB}-N} \vee g_v^{i-\text{UB}+1})
-            \end{align}
 
-            In the wrapping cases the allowed sets are a union of two intervals, $[1,\,i+\text{UB}-1] \cup [N+i-\text{UB}+1,\,N]$ when wrapping left, and $[1,\,i+\text{UB}-N-1] \cup [i-\text{UB}+1,\,N]$ when wrapping right. The two wrapping cases cannot occur simultaneously when the upper bound is correctly initialized as $\text{UB} \le \left\lfloor \frac{N}{2} \right\rfloor$.
+            \begin{itemize}
+                \item No wrap $(\text{UB} \le i \le N-\text{UB}+1)$:
+    
+                \begin{center}
+                    \(\displaystyle
+                    x_u^i \rightarrow g_v^{i-\text{UB}+1}
+                    \qquad \text{and} \qquad x_u^i \rightarrow \neg g_v^{i+\text{UB}}
+                    \)
+                \end{center}
 
-        \paragraph{\textbf{Clause counts.}}
+                \item Wrap in the left $(1 \leq i < \text{UB})$:
+
+                \begin{center}
+                                    \(\displaystyle
+                x_u^i \rightarrow (\neg g_v^{i+\text{UB}} \vee g_v^{N+i-\text{UB}+1})
+                \)
+                \end{center}
+
+                \item Wrap in the right
+
+                \begin{center}
+                    \(\displaystyle
+                    x_u^i \rightarrow (\neg g_v^{i+\text{UB}-N} \vee g_v^{i-\text{UB}+1})
+                    \)
+                \end{center}    
+            \end{itemize}
+
+            In the wrapping cases, the allowed sets are a union of two intervals, $[1,\,i+\text{UB}-1] \cup [N+i-\text{UB}+1,\,N]$ when wrapping left, and $[1,\,i+\text{UB}-N-1] \cup [i-\text{UB}+1,\,N]$ when wrapping right. The two wrapping cases cannot occur simultaneously when $\text{UB} \le \left\lfloor \frac{N}{2} \right\rfloor$; a larger bound does not restrict anything, since $d(i,j) \le \left\lfloor \frac{N}{2} \right\rfloor$ always holds.
+
+        \paragraph{\textbf{Clause counts:}}
             Assuming $\text{UB} \le \left\lfloor \frac{N}{2} \right\rfloor$, the allowed label range of $v$ contains $2\,\text{UB}-1$ labels, so for each of the $N$ potential labels $i\in [1,N]$ of $u$: the direct encoding forbids $N-(2\,\text{UB}-1)$ labels of $v$, therefore $N(N-2\,\text{UB}+1)$ clauses are required \textit{per edge}. Additionally, the direct encoding needs roughly $2N$ $\text{AMO}$ clauses (product encoding) and 1 $\text{ALO}$ clause \textit{per vertex} to ensure that each vertex is assigned exactly one label, so the total number of clauses required is about $|E|\cdot N(N-2\,\text{UB}+1) + N(2N+1)$. The order encoding takes roughly 2 clauses for each of the $N-2\,\text{UB}+2$ potential labels $i\in [\text{UB},N-\text{UB}+1]$ of $u$ that don't cause the valid label range of $v$ to wrap, plus 1 clause for each of the $2(\text{UB}-1)$ wrapping cases, therefore about $2N-2\,\text{UB}+2$ clauses are required \textit{per edge}. In addition, for each vertex $u$, it needs: roughly $N$ consistency clauses, $3N$ biconditional clauses, and 2 clauses for the constants $g_u^1$ and $g_u^{N+1}$, which brings the total to around $|E|\cdot (2N-2\,\text{UB}+2) + N(4N+2)$ clauses. This gives $O(|E|\cdot N^2)$ clauses for the direct encoding and $O(|E|\cdot N + N^2)$ for the order encoding.
 
     \subsection{Finding the minimum bandwidth using Incremental SAT}
-        In order to find the minimum bandwidth of a graph, we repeatedly try to find assignments that satisfiy a shrinking upper bound until a valid assignment no longer exists. In SAT solving terms, we try to solve a sequence of formulas, each enforcing a smaller $\text{UB}$. Each satisfiable result updates $\text{UB}$ to the bandwidth of the assignment found, and the first UNSAT result proves that the current $\text{UB}$ is already minimal.
+        To find the minimum bandwidth of a graph, we iteratively solve SAT instances with decreasing upper bounds. The process terminates when no valid assignment exists. In SAT solving terms, we try to solve a sequence of formulas, each enforcing a smaller upper bound. Whenever a SAT solution is found, the upper bound is updated to the bandwidth of the corresponding assignment. The first UNSAT instance proves that no assignment exists with a smaller bandwidth, and therefore the current upper bound is optimal..
 
-        \vspace{1em}
+        Due to the monotonicity of the order encoding:
 
-        \noindent Due to the monotonicity of the order encoding:
-        \begin{align}
-            &g_u^{k+1} \rightarrow g_u^k \\
-            &\neg g_u^k \rightarrow \neg g_u^{k+1}
-        \end{align}
+
+        \begin{center}
+        \(\displaystyle
+        g_u^{k+1} \rightarrow g_u^k
+        \qquad
+        \text{and}
+        \qquad
+        \neg g_u^k \rightarrow \neg g_u^{k+1}
+        \)
+        \end{center}
         
-        \noindent the clauses for a smaller $\text{UB}$ imply those for previous, larger $\text{UB}$s:
-        \begin{align}
-            &g_v^{k-\text{UB}+1} \rightarrow g_v^{k-\text{UB}} \\
-            &\neg g_v^{k+\text{UB}} \rightarrow \neg g_v^{k+\text{UB}+1}
-        \end{align}
         
-        Therefore, each subsequent formula can be obtained by appending new clauses, which enforce a smaller $\text{UB}$, to the previous formula. As each new formula is just an extension of a formula that the solver has already solved, this enables the same solver instance to be reused to solve them, rather than re-initialized. This technique is known as Incremental SAT, and it allows the solver to retain its internal heuristics and learned clauses across formulas, which can potentially reduce solve times.
+        the clauses for a smaller $\text{UB}$ imply those for previous, larger $\text{UB}$s:
+
+        \begin{center}
+            \(\displaystyle
+            g_v^{k-\text{UB}+1} \rightarrow g_v^{k-\text{UB}}
+            \qquad
+            \text{and}
+            \qquad
+            \neg g_v^{k+\text{UB}} \rightarrow \neg 
+            \)
+        \end{center}
+        
+        Therefore, each subsequent formula is obtained by appending additional clauses that enforce a smaller upper bound. Since each formula extends the previous one, the same SAT solver instance can be reused instead of being reinitialized from scratch. This technique, known as Incremental SAT, allows the solver to retain learned clauses and heuristic information across successive formulas, often reducing solving time.
 
         \paragraph{\textbf{Initial upper bound.}}
-            The search proceeds downwards from an initial upper bound, which is the bandwidth computed from a heuristic assignment (e.g.\ Cuthill-McKee).
+            The search begins with an initial upper bound obtained from a heuristic labeling generated using the Reverse Cuthill-McKee (RCM) \cite{cuthill1969rcm} algorithm.
 
         \begin{algorithm}[H]
             \caption{Pseudocode of Incremental SAT for the cyclic bandwidth problem}
@@ -233,14 +320,14 @@ The formula $F_1$ becomes true with $x_1$ = false, $x_2$ = true, therefore $F_1$
                 \State \textbf{Input}: Undirected graph $G(V,E)$ with $|V|=N$, time limit: $T_{\max}$
                 \State \textbf{Output}: The best assignment $A$, and its resulting bandwidth $\text{UB}$
                 \Statex
-                \State $A \gets \textsc{InitialAssignment}(G)$ \Comment{heuristic assignment, e.g.\ Cuthill-McKee}
+                \State $A \gets \textsc{InitialAssignment}(G)$ \Comment{heuristic assignment (RCM)}
                 \State $\text{UB} \gets \textsc{Bandwidth}(A)$
                 \State $\text{clauses} \gets \textsc{InitialClauses}()$ \Comment{label assignment constraints, order encoding consistency constraints,...}
                 \Statex
                 \While{$\textsc{TimeElapsed}() < T_{\max}$}
                     \ForAll{$(u,v) \in E$}
                         \For{$i = 1$ \textbf{to} $N$}
-                            \State $\text{clauses}$.append( $[a(u)=i] \rightarrow [\min(|a(u)-a(v)|,\, N-|a(u)-a(v)|) \le \text{UB}-1]$ )
+                            \State $\text{clauses}$.append( $[\varphi(u)=i] \rightarrow [\min(|\varphi(u)-\varphi(v)|,\, N-|\varphi(u)-\varphi(v)|) \le \text{UB}-1]$ )
                         \EndFor
                     \EndFor
                     \Statex
@@ -257,10 +344,324 @@ The formula $F_1$ becomes true with $x_1$ = false, $x_2$ = true, therefore $F_1$
             \end{algorithmic}
         \end{algorithm}
 
+    \subsection{Symmetry breaking constraints}
+        \subsubsection{Indexing convention}
+        The equations in this section use labels $1,\dots,N$, as in the encodings above, while the implementation indexes labels $0,\dots,N-1$. Adding $1$ to every label does not change any cyclic distance, so the two conventions are equivalent.
+
+        \subsubsection{Rotation symmetry breaking.}
+        Since rotating a labeling does not change its cyclic bandwidth, each solution belongs to an equivalence class of $N$ rotationally symmetric labelings. Without symmetry breaking, the solver may waste time exploring all of them. To eliminate this symmetry, we fix an arbitrary anchor vertex $v_1$​ to label 1:
+
+        \begin{center}
+            \(\displaystyle
+            \varphi(v_1) = 1 \leftrightarrow x_{v_1}^1.
+            \)
+        \end{center}
+        
+        Any valid assignment can be rotated to place $v_1$ at label 1 without changing the cyclic bandwidth. Therefore, this constraint removes all rotationally equivalent solutions while preserving at least one optimal solution.
+
+        \subsubsection{Reflection symmetry breaking}
+        After fixing $\varphi(v_1)=1$, the only remaining symmetry is reflection about label 1, which map label 1 to itself and label $k$ to $N+2-k$ for $2 \le k \le N$. To retain only one representative from each reflected pair of solutions, we require:
+        
+        \begin{center}
+
+            \(\displaystyle
+            \varphi(v_2) < \varphi(v_N)
+            \)
+        \end{center}
+        
+        Note that this requires $v_2$ and $v_N$ to be different vertices, which is true when $N \ge 3$. In the order encoding, $g_{v_2}^i$ is true if $\varphi(v_2) \ge i$. Therefore, if $\varphi(v_N) = i$, then $\varphi(v_2)<i$ must hold, which is encoded as
+
+        \begin{center}
+
+            \(\displaystyle
+            x_{v_N}^i \rightarrow \neg g_{v_2}^i
+            \leftrightarrow (\neg x_{v_N}^i \vee \neg g_{v_2}^i)
+            \quad \forall i \in \{1,\dots,N\}
+            \)
+        \end{center}
+        
+        All benchmark instances in this report have $N \ge 3$, so this constraint can be applied to all of them.
+
+    \subsection{Heuristic initial upper bound}
+        To reduce the number of iterations required to reach the optimum, we start the search from an initial upper bound obtained from the RCM algorithm \citep{cuthill1969rcm}. RCM constructs a breadth-first search assignment starting from a pseudo-peripheral vertex, which is known to produce orderings with small envelope and bandwidth on sparse physical graphs.
+
+        The RCM assignment is evaluated via Eq.~(\ref{eq:cyclic_distance}) to obtain an initial bandwidth $\text{UB}_{\text{rcm}}$. If the heuristic assignment satisfies all constraints, we set $\text{UB} = \text{UB}_{\text{rcm}}$; otherwise, the search starts from the trivial bound $\text{UB} = \left\lfloor \frac{N}{2} \right\rfloor + 1$.
+
+
+\section{Experiments}
+
+    \subsection{Experimental Setup}
+
+        The experimental dataset contains four disjoint experiment groups comprising 179 recorded runs in total, summarized in Table~\ref{tab:experiment_groups}. The exact-methods group applies the five exact solving methods listed in Table~\ref{tab:specs} to 28 Harwell-Boeing instances ($9 \le N \le 1104$). The encoding group compares three encoding configuratios of the label range encoding and the AMO encoding on four instances. The ablation group evaluates six settings on four instances. The incumbent-progress group contains three runs that track the progression of the best upper bound (UB) found during the search.
+
+        \begin{center}
+        \centering
+        \captionof{table}{Recorded experiment groups in the local snapshot.}
+        \label{tab:experiment_groups}
+        \begin{tabular}{lrr}
+        \toprule
+        Group & Configurations & Runs \\
+        \midrule
+        Exact methods & 28 instances $\times$ 5 methods & 140 \\
+        Encoding comparison & 4 instances $\times$ 3 configurations & 12 \\
+        Ablation & 4 instances $\times$ 6 settings & 24 \\
+        Incumbent progress & 3 instances & 3 \\
+        \midrule
+        Total & & 179 \\
+        \bottomrule
+        \end{tabular}
+        \end{center}
+
+        The environment and run specifications are given in Table~\ref{tab:specs}; unless stated otherwise, the SAT configuration uses the default specifications listed there. No repeated trials were performed; consequently, the reported runtimes represent individual observations rather than averages.
+
+        \begin{center}
+        \centering
+        \captionof{table}{Environment and run specifications.}
+        \label{tab:specs}
+        \begin{tabular}{lp{0.62\textwidth}}
+        \toprule
+        Processor & 12th Gen Intel(R) Core(TM) i5-12500H \\
+        No. of cores & 12 \\
+        RAM & 16 GB \\
+        SAT solver & CaDiCaL 1.9.5 \\
+        Library & PySAT \\
+        Default SAT configuration & Order encoding, product AMO, heuristic initial $\text{UB}$, rotation and reflection symmetry breaking \\
+        Exact methods & CaDiCaL SAT, CP-SAT, CPLEX MIP, CPLEX CP Optimizer, Gurobi \\
+        Time limit per run & 600 seconds \\
+        Runs per configuration & 1 \\
+        \bottomrule
+        \end{tabular}
+        \end{center}
+
+    \subsection{Benchmark Instances and SAT Results}
+
+        Each of the 28 Harwell-Boeing matrices is symmetrised and converted into an undirected graph (diagonal entries are ignored). The instances have between $N=9$ and $N=1104$ vertices and between 32 and 3720 edges. The lower bounds ($\text{LB}$) are taken from Ren et al.~\cite{Ren2020}, who compute them using the maximum vertex degree of each benchmark graph. Table~\ref{tab:sat_instances} lists the SAT solver results for every instance, under the default configuration.
+
+        \begin{center}
+        \centering
+        \small
+        \captionof{table}{SAT results on the 28 Harwell-Boeing instances, ordered by $N$. $\text{LB}$ is a known lower bound, $\text{UB}$ is the best bandwidth found within 600 seconds, and OPT means that $\text{UB}$ is proven optimal. Variables and clauses are recorded only for runs that finished.}
+        \label{tab:sat_instances}
+        \begin{tabular}{lrrrrlrrr}
+        \toprule
+        Instance & $N$ & $|E|$ & $\text{LB}$ & $\text{UB}$ & Status & Time (s) & Variables & Clauses \\
+        \midrule
+        \texttt{jgl009} & 9 & 32 & 4 & 4 & OPT & $<0.01$ & 225 & 897 \\
+        \texttt{rgg010} & 10 & 45 & 5 & 5 & OPT & $<0.01$ & 280 & 1181 \\
+        \texttt{jgl011} & 11 & 49 & 5 & 5 & OPT & $<0.01$ & 330 & 1458 \\
+        \texttt{can\_24} & 24 & 68 & 4 & 5 & OPT & 0.04 & 1416 & 6209 \\
+        \texttt{pores\_1} & 30 & 103 & 5 & 7 & OPT & 0.64 & 2160 & 10597 \\
+        \texttt{ibm32} & 32 & 90 & 6 & 9 & OPT & 0.81 & 2464 & 10293 \\
+        \texttt{bcspwr01} & 39 & 46 & 3 & 4 & OPT & 2.03 & 3588 & 13539 \\
+        \texttt{bcsstk01} & 48 & 176 & 6 & 12 & OPT & 17.62 & 5328 & 24481 \\
+        \texttt{bcspwr02} & 49 & 59 & 3 & 7 & OPT & 37.35 & 5537 & 20909 \\
+        \texttt{curtis54} & 54 & 124 & 8 & 8 & OPT & 29.32 & 6696 & 30279 \\
+        \texttt{will57} & 57 & 127 & 5 & 6 & OPT & 5.39 & 7467 & 33837 \\
+        \texttt{impcol\_b} & 59 & 240 & 9 & 15 & TIMEOUT & 600.10 & -- & -- \\
+        \texttt{ash85} & 85 & 219 & 5 & 9 & OPT & 527.21 & 16150 & 83426 \\
+        \texttt{nos4} & 100 & 247 & 3 & 10 & TIMEOUT & 600.12 & -- & -- \\
+        \texttt{bcspwr03} & 118 & 179 & 5 & 10 & TIMEOUT & 600.10 & -- & -- \\
+        \texttt{dwt\_234} & 234 & 300 & 5 & 22 & TIMEOUT & 600.12 & -- & -- \\
+        \texttt{bcsstk06} & 420 & 3720 & 14 & 47 & TIMEOUT & 600.83 & -- & -- \\
+        \texttt{bcsstk07} & 420 & 3720 & 14 & 47 & TIMEOUT & 600.78 & -- & -- \\
+        \texttt{impcol\_d} & 425 & 1193 & 8 & 65 & TIMEOUT & 600.88 & -- & -- \\
+        \texttt{can\_445} & 445 & 1682 & 6 & 118 & TIMEOUT & 600.93 & -- & -- \\
+        \texttt{494\_bus} & 494 & 586 & 5 & 77 & TIMEOUT & 600.62 & -- & -- \\
+        \texttt{dwt\_503} & 503 & 2762 & 12 & 60 & TIMEOUT & 600.84 & -- & -- \\
+        \texttt{dwt\_592} & 592 & 2256 & 7 & 41 & TIMEOUT & 601.01 & -- & -- \\
+        \texttt{662\_bus} & 662 & 906 & 5 & 110 & TIMEOUT & 600.79 & -- & -- \\
+        \texttt{nos6} & 675 & 1290 & 2 & 30 & TIMEOUT & 600.79 & -- & -- \\
+        \texttt{685\_bus} & 685 & 1282 & 6 & 82 & TIMEOUT & 601.22 & -- & -- \\
+        \texttt{can\_715} & 715 & 2975 & 52 & 138 & TIMEOUT & 600.59 & -- & -- \\
+        \texttt{sherman4} & 1104 & 1341 & 3 & 44 & TIMEOUT & 600.56 & -- & -- \\
+        \bottomrule
+        \end{tabular}
+        \end{center}
+
+        SAT proves optimality on 12 of the 28 instances, all with $N \le 85$, and times out on the other 16. On the seven smallest instances ($N \le 39$) the proven optimum equals the optimal cyclic bandwidth reported in the literature. Difficulty does not follow $N$ alone: \texttt{will57} ($N=57$) is solved in 5.39 seconds, whereas \texttt{impcol\_b} ($N=59$) times out. For the finished runs, the variable count grows as $O(N^2)$ ($N^2$ vertex/label variables, $N(N+1)$ order variables, and $N(p+q)$ auxiliary variables for the product encoding), specifically, it goes from 225 for \texttt{jgl009} ($N=9$) to 16150 for \texttt{ash85} ($N=85$). In agreement with Section 3, the number of clauses grows as $O(|E| \cdot N + N^2)$, and goes from 897 for \texttt{jgl009} ($N=9$, $|E|=32$) to 83426 for \texttt{ash85} ($N=85$, $|E|=219$).
+        On the 16 unresolved instances SAT only reports the best upper bound found within the limit. On the large graphs this bound stays far above the lower bound (for example 138 upper bound against 52 lower bound for \texttt{can\_715} and 44 upper bound against 3 lower bound for \texttt{sherman4}), so these entries should be read as upper bounds only.
+
+    \subsection{Comparison with Exact Methods}
+
+        Table~\ref{tab:solver_status} summarizes the 140 runs in the exact-methods group. A timeout means that the run reached its time limit without proving optimality. The \texttt{ERROR} outcomes are reported as recorded, and they are not treated as proofs of infeasibility by the solvers.
+        
+        \begin{center}
+        \centering
+        \captionof{table}{Status counts for the 28-instance comparison of exact methods.}
+        \label{tab:solver_status}
+        \begin{tabular}{lrrr}
+        \toprule
+        Method & Optimal & Timeout & Error \\
+        \midrule
+        CaDiCaL SAT & 12 & 16 & 0 \\
+        CP-SAT & 10 & 18 & 0 \\
+        CPLEX CP Optimizer & 7 & 21 & 0 \\
+        CPLEX MIP & 1 & 0 & 27 \\
+        Gurobi & 6 & 1 & 21 \\
+        \bottomrule
+        \end{tabular}
+        \end{center}
+
+        Among the 27 CPLEX MIP errors, 24 are recorded as model-size limits of the available edition and three as \texttt{INTEGER INFEASIBLE}. The 21 Gurobi errors all report a size-limited license. These limits come from the environment and the models, so they are not evidence that those methods are generally slower. Figure~\ref{fig:methods_runtime} shows the measured runtimes and separates timeout runs from completed runs. Runs with errors and no measured runtime are not drawn in the plot and are noted there.
+
+        \begin{center}
+        \begin{minipage}{\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{../results/methods/method_times}
+        \captionof{figure}{Recorded runtime by method and instance. Hatched bars indicate timeout runs; records without measured runtime are noted in the plot.}
+        \label{fig:methods_runtime}
+        \end{minipage}
+        \end{center}
+
+    \subsection{Label Range and AMO Encoding Comparison}
+
+        The encoding experiment has four instances and three configurations: the direct encoding with product AMO, the order encoding with product AMO, and the order encoding with pairwise AMO. Table~\ref{tab:encoding_comparison} reports the recorded status, the best upper bound $\text{UB}$, and the solver time. Note that the direct encoding on \texttt{curtis54} is still labelled as a timeout although its recorded $\text{UB}$ is 8.
+
+        \begin{center}
+        \centering
+        \small
+        \captionof{table}{Label range and AMO encoding results.}
+        \label{tab:encoding_comparison}
+        \begin{tabular}{llrrr}
+        \toprule
+        Instance & Configuration & $N$ & Status / $\text{UB}$ & Time (s) \\
+        \midrule
+        \texttt{bcspwr02} & Direct + product & 49 & OPT / 7 & 573.36 \\
+        & Order + product & 49 & OPT / 7 & 21.89 \\
+        & Order + pairwise & 49 & OPT / 7 & 43.96 \\
+        \texttt{bcsstk01} & Direct + product & 48 & OPT / 12 & 85.40 \\
+        & Order + product & 48 & OPT / 12 & 9.96 \\
+        & Order + pairwise & 48 & OPT / 12 & 7.57 \\
+        \texttt{curtis54} & Direct + product & 54 & TIMEOUT / 8 & 600.05 \\
+        & Order + product & 54 & OPT / 8 & 19.10 \\
+        & Order + pairwise & 54 & OPT / 8 & 29.61 \\
+        \texttt{will57} & Direct + product & 57 & OPT / 6 & 18.87 \\
+        & Order + product & 57 & OPT / 6 & 4.13 \\
+        & Order + pairwise & 57 & OPT / 6 & 2.60 \\
+        \bottomrule
+        \end{tabular}
+        \end{center}
+
+        Order + product is faster than direct + product on all four instances. Between the two AMO variants of the order encoding, the faster one depends on the instance. Since this is a small comparison with one run per configuration, it does not establish a general ranking. Figure~\ref{fig:encoding_runtime} visualizes the encoding runs.
+
+        \begin{center}
+        \begin{minipage}{\textwidth}
+        \centering
+        \includegraphics[width=0.9\textwidth]{../results/encodings/encoding_configs}
+        \captionof{figure}{Runtime comparison of the three label range/AMO encoding configurations.}
+        \label{fig:encoding_runtime}
+        \end{minipage}
+        \end{center}
+
+    \subsection{Symmetry-Breaking and Heuristic Ablation}
+
+        The ablation compares weak, medium, and strong settings with runs that disable rotation symmetry breaking, reflection symmetry breaking, or the heuristic initial upper bound. Weak uses neither symmetry breaking nor the heuristic initial upper bound, medium adds rotation symmetry breaking, and strong adds reflection symmetry breaking and the heuristic initial upper bound (the default configuration). No rotation disables both rotation and reflection symmetry breaking (reflection relies on the fixed anchor), no reflection disables only reflection, and no heuristic disables only the heuristic initial upper bound. All 24 runs prove optimality, and for each instance all six settings return the same best bandwidth. Table~\ref{tab:ablation_times} gives the runtimes in seconds.
+
+        \begin{center}
+        \small
+        \captionof{table}{Ablation runtimes in seconds; all entries have status OPT.}
+        \label{tab:ablation_times}
+        \begin{tabular}{lrrrrrr}
+        \toprule
+        Instance & Weak & Medium & Strong & No rotation & No reflection & No heuristic \\
+        \midrule
+        \texttt{bcsstk01} & 31.09 & 5.75 & 9.42 & 30.91 & 5.41 & 13.29 \\
+        \texttt{curtis54} & 57.91 & 72.73 & 17.00 & 25.81 & 38.42 & 76.37 \\
+        \texttt{bcspwr02} & 104.92 & 45.91 & 37.41 & 106.28 & 42.59 & 27.88 \\
+        \texttt{will57} & 61.68 & 2.70 & 6.27 & 48.24 & 2.11 & 4.53 \\
+        \bottomrule
+        \end{tabular}
+        \end{center}
+
+        Figure~\ref{fig:ablation_runtime} shows the same measurements. The runtime varies considerably between instances and settings. With only four graphs and one run per setting, the results cannot isolate a general effect of any single feature.
+
+        \begin{center}
+        \begin{minipage}{\textwidth}
+        \centering
+        \includegraphics[width=0.9\textwidth]{../results/ablation/per_level_times}
+        \captionof{figure}{Runtime by ablation setting for the four instances.}
+        \label{fig:ablation_runtime}
+        \end{minipage}
+        \end{center}
+
+    \subsection{Incumbent Progress}
+
+        Table~\ref{tab:ub_progress} summarizes the three saved incumbent-progress runs, and Fig.~\ref{fig:ub_progress_plot} shows the incumbent trajectories available in the records. The \texttt{bcspwr03} run timed out with $\text{UB}$ 10, while the other two runs proved optimality.
+
+        \begin{center}
+        \centering
+        \captionof{table}{Final outcome of the saved incumbent-progress runs.}
+        \label{tab:ub_progress}
+        \begin{tabular}{lrrrr}
+        \toprule
+        Instance & $N$ & Status & Best $\text{UB}$ & Time (s) \\
+        \midrule
+        \texttt{ash85} & 85 & OPT & 9 & 335.64 \\
+        \texttt{bcspwr03} & 118 & TIMEOUT & 10 & 600.04 \\
+        \texttt{will57} & 57 & OPT & 6 & 3.85 \\
+        \bottomrule
+        \end{tabular}
+        \end{center}
+
+        \begin{center}
+        \begin{minipage}{\textwidth}
+        \centering
+        \includegraphics[width=0.9\textwidth]{../results/ub-time/ub_vs_time}
+        \captionof{figure}{Saved incumbent upper-bound progress over time.}
+        \label{fig:ub_progress_plot}
+        \end{minipage}
+        \end{center}
+
+    \subsection{Discussion and Limitations}
+
+        The exact-methods batch includes large matrices up to $N=1104$, but its 600-second limit leaves many runs unresolved. CaDiCaL SAT times out on 16 of the 28 instances and proves optimality on 12, compared with 10 for CP-SAT, 7 for CPLEX CP Optimizer, 1 for CPLEX MIP, and 6 for Gurobi. CPLEX MIP and Gurobi fail for a different reason. Most of their errors (24 of 27 for CPLEX MIP, all 21 for Gurobi) come from the size limit of the edition and the license we used, so those methods did not actually perform search on these instances. Because of this, these results do not reflect the underlying performance of CPLEX or Gurobi; they mainly reflect what could be run in our environment, and the status table should be read as an account of this environment and batch.
+
+        The same instance recurs across experiment groups under the default configuration, which gives a rough view of run-to-run variation. \texttt{will57} is solved in 5.39, 4.13, 6.27, and 3.85 seconds in the exact-methods, encoding, ablation (strong), and incumbent-progress groups, respectively, and \texttt{bcsstk01} in 17.62, 9.96, and 9.42 seconds in the first three groups (all under the default configuration). \texttt{ash85} takes 527.21 seconds in the exact-methods group but 335.64 seconds in the incumbent-progress group. These runs differ by a factor of approximately 2, so differences of this magnitude between single runs may simply be attributed to run-to-run variation. As an example, runtimes of the direct versus order encodings for the label range constraint differ by 4.6 to 26 times on the three instances where the direct encoding finishes, a much larger difference than this variation.
+
+        For the encodings, the direct one is the slowest in all four of our instances. It takes 573.36 seconds on \texttt{bcspwr02} and 85.40 seconds on \texttt{bcsstk01}, and on \texttt{curtis54} it stops at the 600-second limit. Order + product needs 21.89 and 9.96 seconds on the first two. So the order encoding looks much faster, at least on these four graphs. This difference may stem from the clause count, as the direct encoding needs $O(|E| \cdot N^2)$ clauses compared to $O(|E| \cdot N + N^2)$ for the order encoding, although this was not verified directly.
+
+        The ablation is less clear. Removing reflection symmetry breaking does not slow down \texttt{bcsstk01} and \texttt{will57} (5.41 and 2.11 seconds, compared to 9.42 and 6.27 seconds for the strong setting), while on \texttt{curtis54} the strong setting is the fastest of the six. Similarly, the run without the heuristic is the fastest on \texttt{bcspwr02} but the slowest on \texttt{curtis54}. So we cannot say that one component always helps. Since each setting was run only once, part of these differences may simply come from sensitivity of the solver's search heuristics to clause ordering, which was not measured directly.
+
+\section{Conclusion}
+
+    This work implements an exact SAT-based CBMP solver with direct and order label range encodings, pairwise and product AMO encodings, incremental bound reduction, rotation and reflection symmetry breaking, and a heuristic initial upper bound. The local snapshot contains 179 runs, including comparisons against CP-SAT, CPLEX MIP, CPLEX CP Optimizer, and Gurobi on 28 Harwell-Boeing instances. It also records encoding comparisons, six ablation settings, and incumbent progress.
+
+    On the 28-instance comparison, CaDiCaL proves optimality on 12 instances under a 600-second limit. The encoding and ablation groups provide useful instance-level measurements, while license/model errors and unresolved timeouts limit broader comparisons. Larger runs and repeated trials would be needed to support stronger scalability and performance conclusions.
 
 \bibliographystyle{elsarticle-num}
 \nocite{*}
-
 \bibliography{references}
+
+\section*{Referenced Code}
+    The implementation of certain SAT encodings references the public repository \url{https://github.com/24020106NguyenTungDuong/RMLP-public}, which implements exact ILP and SAT approaches (basic and order SAT encodings with an incremental descending search) for the radio mean labeling problem.
+
+\section*{Data Availability}
+    The source code and benchmark collection are hosted at \url{https://github.com/Lauyrl/CbmpSAT}. The 28 Harwell-Boeing instances are taken from the Matrix Market collection at \url{https://math.nist.gov/MatrixMarket/data/Harwell-Boeing/}. The experiment records used in this report are stored in the following files:
+    \begin{itemize}
+    \item \path{results/methods/records.jsonl}
+    \item \path{results/encodings/records.jsonl}
+    \item \path{results/ablation/records.jsonl}
+    \item \path{results/ub-time/records.jsonl}
+    \end{itemize}
+    The derived CSV tables and CNSPlots figures are stored in the corresponding group directories under \path{results/}.
+
+    From the repository root, the CSV files and plots can be regenerated from the saved records without rerunning the solvers:
+    \begin{verbatim}
+    python experiments.py all --rebuild-only
+    \end{verbatim}
+
+\section*{Member contribution}
+
+    \begin{center}
+    \begin{tabular}{lll}
+    \toprule
+    \textbf{Name} & \textbf{MSV} & \textbf{Contribution} \\
+    \midrule
+    Nguyen Hai An & & \\
+    Le Nam Huy & & \\
+    Nguyen Kha Dat & & \\
+    \bottomrule
+    \end{tabular}
+    \end{center}
 
 \end{document}
