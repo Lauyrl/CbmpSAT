@@ -478,8 +478,8 @@ We present an exact SAT-based approach to the Cyclic Bandwidth Minimization Prob
         \end{tabular}
         \end{center}
 
-        SAT proves optimality on 12 of the 28 instances, all with $N \le 85$, and times out on the other 16. On the seven smallest instances ($N \le 39$) the proven optimum equals the optimal cyclic bandwidth reported in the literature. Difficulty does not follow $N$ alone: \texttt{will57} ($N=57$) is solved in 5.39 seconds, whereas \texttt{impcol\_b} ($N=59$) times out. For the finished runs, the variable count grows as $O(N^2)$ ($N^2$ vertex/label variables, $N(N+1)$ order variables, and $N(p+q)$ auxiliary variables for the product encoding), specifically, it goes from 225 for \texttt{jgl009} ($N=9$) to 16150 for \texttt{ash85} ($N=85$). In agreement with Section 3, the number of clauses grows as $O(|E| \cdot N + N^2)$, and goes from 897 for \texttt{jgl009} ($N=9$, $|E|=32$) to 83426 for \texttt{ash85} ($N=85$, $|E|=219$).
-        On the 16 unresolved instances SAT only reports the best upper bound found within the limit. On the large graphs this bound stays far above the lower bound (for example 138 upper bound against 52 lower bound for \texttt{can\_715} and 44 upper bound against 3 lower bound for \texttt{sherman4}), so these entries should be read as upper bounds only.
+        SAT proves optimality for 12 of the 28 instances, all with $N \le 85$, and surpass the time limit on the other 16. On the seven smallest instances ($N \le 39$) the proven optimum equals the optimal cyclic bandwidth reported in the literature. Problem difficulty does not soly depend on $N$: \texttt{will57} ($N=57$) is solved in 5.39 seconds, whereas \texttt{impcol\_b} ($N=59$) times out. For the finished runs, the variable count grows as $O(N^2)$ ($N^2$ vertex/label variables, $N(N+1)$ order variables, and $N(p+q)$ auxiliary variables for the product encoding), specifically, it goes from 225 for \texttt{jgl009} ($N=9$) to 16150 for \texttt{ash85} ($N=85$). In agreement with Section 3, the number of clauses grows as $O(|E| \cdot N + N^2)$, and goes from 897 for \texttt{jgl009} ($N=9$, $|E|=32$) to 83426 for \texttt{ash85} ($N=85$, $|E|=219$).
+        On the 16 unresolved instances, SAT only reports the best upper bound found within the limit. For larger graphs, this bound stays far above the lower bound (for example 138 upper bounds against 52 lower bounds for \texttt{can\_715} and 44 upper bounds against 3 lower bounds for \texttt{sherman4}), so these entries should be interpreted as upper bounds rather than exact solutions.
 
     \subsection{Comparison with Exact Methods}
 
@@ -527,22 +527,22 @@ We present an exact SAT-based approach to the Cyclic Bandwidth Minimization Prob
         Instance & Configuration & $N$ & Status / $\text{UB}$ & Time (s) \\
         \midrule
         \texttt{bcspwr02} & Direct + product & 49 & OPT / 7 & 573.36 \\
-        & Order + product & 49 & OPT / 7 & 21.89 \\
-        & Order + pairwise & 49 & OPT / 7 & 43.96 \\
-        \texttt{bcsstk01} & Direct + product & 48 & OPT / 12 & 85.40 \\
-        & Order + product & 48 & OPT / 12 & 9.96 \\
-        & Order + pairwise & 48 & OPT / 12 & 7.57 \\
-        \texttt{curtis54} & Direct + product & 54 & TIMEOUT / 8 & 600.05 \\
-        & Order + product & 54 & OPT / 8 & 19.10 \\
-        & Order + pairwise & 54 & OPT / 8 & 29.61 \\
-        \texttt{will57} & Direct + product & 57 & OPT / 6 & 18.87 \\
-        & Order + product & 57 & OPT / 6 & 4.13 \\
-        & Order + pairwise & 57 & OPT / 6 & 2.60 \\
+        & Order + Product & 49 & OPT / 7 & 21.89 \\
+        & Order + Pairwise & 49 & OPT / 7 & 43.96 \\
+        \texttt{bcsstk01} & Direct + Product & 48 & OPT / 12 & 85.40 \\
+        & Order + Product & 48 & OPT / 12 & 9.96 \\
+        & Order + Pairwise & 48 & OPT / 12 & 7.57 \\
+        \texttt{curtis54} & Direct + Product & 54 & TIMEOUT / 8 & 600.05 \\
+        & Order + Product & 54 & OPT / 8 & 19.10 \\
+        & Order + Pairwise & 54 & OPT / 8 & 29.61 \\
+        \texttt{will57} & Direct + Product & 57 & OPT / 6 & 18.87 \\
+        & Order + Product & 57 & OPT / 6 & 4.13 \\
+        & Order + Pairwise & 57 & OPT / 6 & 2.60 \\
         \bottomrule
         \end{tabular}
         \end{center}
 
-        Order + product is faster than direct + product on all four instances. Between the two AMO variants of the order encoding, the faster one depends on the instance. Since this is a small comparison with one run per configuration, it does not establish a general ranking. Figure~\ref{fig:encoding_runtime} visualizes the encoding runs.
+        According to Table \ref{tab:encoding_comparison}, 'Order + Product' configuration is faster than 'Direct + Product' on all four instances. Between the two AMO variants of the order encoding, the instances determines which one outperforms the other. As this is a small small sample size alongside the absence of repeated trials, it does not establish a general ranking. Figure~\ref{fig:encoding_runtime} visualizes the runtime results for the encoding comparison.
 
         \begin{center}
         \begin{minipage}{\textwidth}
@@ -555,7 +555,11 @@ We present an exact SAT-based approach to the Cyclic Bandwidth Minimization Prob
 
     \subsection{Symmetry-Breaking and Heuristic Ablation}
 
-        The ablation compares weak, medium, and strong settings with runs that disable rotation symmetry breaking, reflection symmetry breaking, or the heuristic initial upper bound. Weak uses neither symmetry breaking nor the heuristic initial upper bound, medium adds rotation symmetry breaking, and strong adds reflection symmetry breaking and the heuristic initial upper bound (the default configuration). No rotation disables both rotation and reflection symmetry breaking (reflection relies on the fixed anchor), no reflection disables only reflection, and no heuristic disables only the heuristic initial upper bound. All 24 runs prove optimality, and for each instance all six settings return the same best bandwidth. Table~\ref{tab:ablation_times} gives the runtimes in seconds.
+        % The ablation study compares weak, medium, and strong settings with runs that disable rotation symmetry breaking, reflection symmetry breaking, or the heuristic initial upper bound. Weak uses neither symmetry breaking nor the heuristic initial upper bound, medium adds rotation symmetry breaking, and strong adds reflection symmetry breaking and the heuristic initial upper bound (the default configuration). No rotation disables both rotation and reflection symmetry breaking (reflection relies on the fixed anchor), no reflection disables only reflection, and no heuristic disables only the heuristic initial upper bound. All 24 runs prove optimality, and for each instance all six settings return the same best bandwidth. Table~\ref{tab:ablation_times} gives the runtimes in seconds.
+        
+        The ablation study compares six configurations derived from different combinations of symmetry breaking and heuristic initialization. The weak configuration uses neither symmetry breaking nor a heuristic initial upper bound. The medium configuration adds rotation symmetry breaking. The strong configuration, which serves as the default setting, further adds reflection symmetry breaking and a heuristic initial upper bound. In addition, three variants disable individual components: no rotation disables both rotation and reflection symmetry breaking (since reflection relies on the fixed anchor vertex), no reflection disables only reflection symmetry breaking, and no heuristic disables only the heuristic initial upper bound.
+
+        All 24 runs prove optimality, and for each instance all six configurations obtain the same optimal bandwidth. Table~\ref{tab:ablation_times} reports the runtimes in seconds.
 
         \begin{center}
         \small
@@ -573,7 +577,7 @@ We present an exact SAT-based approach to the Cyclic Bandwidth Minimization Prob
         \end{tabular}
         \end{center}
 
-        Figure~\ref{fig:ablation_runtime} shows the same measurements. The runtime varies considerably between instances and settings. With only four graphs and one run per setting, the results cannot isolate a general effect of any single feature.
+        Figure~\ref{fig:ablation_runtime} illustrates the same measurements. The runtime varies considerably between instances and settings. With only four graphs and one run per setting, the results cannot isolate a general effect of any single feature.
 
         \begin{center}
         \begin{minipage}{\textwidth}
@@ -586,7 +590,7 @@ We present an exact SAT-based approach to the Cyclic Bandwidth Minimization Prob
 
     \subsection{Incumbent Progress}
 
-        Table~\ref{tab:ub_progress} summarizes the three saved incumbent-progress runs, and Fig.~\ref{fig:ub_progress_plot} shows the incumbent trajectories available in the records. The \texttt{bcspwr03} run timed out with $\text{UB}$ 10, while the other two runs proved optimality.
+        Table~\ref{tab:ub_progress} summarizes the three saved incumbent-progress runs, and Fig.~\ref{fig:ub_progress_plot} shows the incumbent trajectories recorded during the search. The \texttt{ash85} and \texttt{will57} runs prove optimality, whereas \texttt{bcspwr03} reaches the time limit with a best upper bound of 10.
 
         \begin{center}
         \centering
