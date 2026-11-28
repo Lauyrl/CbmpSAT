@@ -42,7 +42,7 @@
 \author{Students: Nguyen Hai An, Le Nam Huy, Nguyen Kha Dat}
 % Abstract
 \begin{abstract}
-We present an exact SAT-based approach to the Cyclic Bandwidth Minimization Problem (CBMP) using direct and order label range encodings, pairwise and product at-most-one (AMO) encodings, incremental bound reduction, symmetry breaking, and a Reverse Cuthill--McKee initial upper bound. The local experiment snapshot contains 179 runs on Harwell-Boeing graphs, including 28 graph instances in a comparison of CaDiCaL SAT with CP-SAT, CPLEX MIP, CPLEX CP Optimizer, and Gurobi under a 600-second limit. CaDiCaL proves optimality on 12 of those 28 instances; the other method outcomes include timeouts and recorded license or model errors. Separate encoding and ablation studies cover four instances each, and all 24 ablation runs prove optimality. The results are single-run observations and do not support statistical or general performance claims.
+We present an exact SAT-based approach to the Cyclic Bandwidth Minimization Problem (CBMP) using direct and order label range encodings, pairwise and product at-most-one (AMO) encodings, incremental bound reduction, symmetry breaking, and a Reverse Cuthill--McKee initial upper bound. The local experiment snapshot contains 179 runs on Harwell-Boeing graphs, including 28 graph instances in a comparison of CaDiCaL SAT with CP-SAT, CPLEX MIP, CPLEX CP Optimizer, and Gurobi under a 600-second limit. CaDiCaL proves optimality on 12 of those 28 instances; the other methods end in timeouts, and CPLEX MIP additionally fails on most instances because of the size limit of the edition we had. Separate encoding and ablation studies cover four instances each, and all 24 ablation runs prove optimality. The results are single-run observations and do not support statistical or general performance claims.
 \end{abstract}
 \begin{keywords}
     Cyclic bandwidth minimization \sep
@@ -339,13 +339,13 @@ We present an exact SAT-based approach to the Cyclic Bandwidth Minimization Prob
         \label{tab:specs}
         \begin{tabular}{lp{0.62\textwidth}}
         \toprule
-        Processor & 12th Gen Intel(R) Core(TM) i5-12500H \\
-        No. of cores & 12 \\
-        RAM & 16 GB \\
+        Processor & 12th Gen Intel(R) Core(TM) i5-12500H (all methods; Gurobi on 21 instances: Apple M4) \\
+        No. of cores & 12 (Apple M4: 10) \\
+        RAM & 16 GB (both machines) \\
         SAT solver & CaDiCaL 1.9.5 \\
         Library & PySAT \\
         Default SAT configuration & Order encoding, product AMO, heuristic initial $\text{UB}$, rotation and reflection symmetry breaking \\
-        Exact methods & CaDiCaL SAT, CP-SAT, CPLEX MIP, CPLEX CP Optimizer, Gurobi \\
+        Exact methods & CaDiCaL SAT, CP-SAT, CPLEX MIP, CPLEX CP Optimizer, Gurobi 14.0 (Academic WLS license) \\
         Time limit per run & 600 seconds \\
         Runs per configuration & 1 \\
         \bottomrule
@@ -416,12 +416,12 @@ We present an exact SAT-based approach to the Cyclic Bandwidth Minimization Prob
         CP-SAT & 10 & 18 & 0 \\
         CPLEX CP Optimizer & 7 & 21 & 0 \\
         CPLEX MIP & 1 & 0 & 27 \\
-        Gurobi & 6 & 1 & 21 \\
+        Gurobi & 7 & 21 & 0 \\
         \bottomrule
         \end{tabular}
         \end{center}
 
-        Among the 27 CPLEX MIP errors, 24 are recorded as model-size limits of the available edition and three as \texttt{INTEGER INFEASIBLE}. The 21 Gurobi errors all report a size-limited license. These limits come from the environment and the models, so they are not evidence that those methods are generally slower. Figure~\ref{fig:methods_runtime} shows the measured runtimes and separates timeout runs from completed runs. Runs with errors and no measured runtime are not drawn in the plot and are noted there.
+        Among the 27 CPLEX MIP errors, 24 are recorded as model-size limits of the available edition and three as \texttt{INTEGER INFEASIBLE}. These come from the environment and the models, so they are not evidence that CPLEX MIP is generally slower. Gurobi ran on all 28 instances without errors. It proves optimality on seven of them, including \texttt{will57} in 377.40 seconds, and reaches the time limit on the other 21, always with a feasible incumbent. On the mid-sized graphs (for example \texttt{bcsstk01}, \texttt{bcspwr02}, \texttt{curtis54}, \texttt{ash85}, \texttt{nos4}) its $\text{UB}$ matches the SAT result, and on \texttt{sherman4} it reaches 182 against 316 for CP-SAT, but it does not close the gap to the lower bound within 600 seconds. On the large graphs (\texttt{can\_445}, \texttt{494\_bus}, \texttt{dwt\_503}, \texttt{dwt\_592}, \texttt{662\_bus}, \texttt{685\_bus}, \texttt{can\_715}) its $\text{UB}$ lies between 214 and 324, clearly above the other methods. Figure~\ref{fig:methods_runtime} shows the measured runtimes and separates timeout runs from completed runs. Runs with errors and no measured runtime are not drawn in the plot and are noted there.
 
         \begin{center}
         \begin{minipage}{\textwidth}
@@ -533,7 +533,7 @@ We present an exact SAT-based approach to the Cyclic Bandwidth Minimization Prob
 
     \subsection{Discussion and Limitations}
 
-        The exact-methods batch includes large matrices up to $N=1104$, but its 600-second limit leaves many runs unresolved. CaDiCaL SAT times out on 16 of the 28 instances and proves optimality on 12, compared with 10 for CP-SAT, 7 for CPLEX CP Optimizer, 1 for CPLEX MIP, and 6 for Gurobi. CPLEX MIP and Gurobi fail for a different reason. Most of their errors (24 of 27 for CPLEX MIP, all 21 for Gurobi) come from the size limit of the edition and the license we used, so those methods did not actually perform search on these instances. Because of this, these results do not reflect the underlying performance of CPLEX or Gurobi; they mainly reflect what could be run in our environment, and the status table should be read as an account of this environment and batch.
+        The exact-methods batch includes large matrices up to $N=1104$, but its 600-second limit leaves many runs unresolved. CaDiCaL SAT times out on 16 of the 28 instances and proves optimality on 12, compared with 10 for CP-SAT, 7 for CPLEX CP Optimizer, 1 for CPLEX MIP, and 7 for Gurobi. CPLEX MIP is the only method that fails for a different reason: 24 of its 27 errors come from the size limit of the promotional edition, so it did not search on the 24 larger instances, and its row mostly reflects what could be run in our environment. Gurobi ran with an academic license and searched on all 28 instances, but timed out on 21 of them. A likely cause is the weak LP relaxation of the cyclic-distance constraints, together with the absence of the symmetry breaking used in the SAT model; we did not test this directly. Gurobi's runs were also split across two machines (Table~\ref{tab:specs}), so its times are not strictly comparable with the other columns.
 
         The same instance recurs across experiment groups under the default configuration, which gives a rough view of run-to-run variation. \texttt{will57} is solved in 5.39, 4.13, 6.27, and 3.85 seconds in the exact-methods, encoding, ablation (strong), and incumbent-progress groups, respectively, and \texttt{bcsstk01} in 17.62, 9.96, and 9.42 seconds in the first three groups (all under the default configuration). \texttt{ash85} takes 527.21 seconds in the exact-methods group but 335.64 seconds in the incumbent-progress group. These runs differ by a factor of approximately 2, so differences of this magnitude between single runs may simply be attributed to run-to-run variation. As an example, runtimes of the direct versus order encodings for the label range constraint differ by 4.6 to 26 times on the three instances where the direct encoding finishes, a much larger difference than this variation.
 
@@ -545,7 +545,7 @@ We present an exact SAT-based approach to the Cyclic Bandwidth Minimization Prob
 
     This work implements an exact SAT-based CBMP solver with direct and order label range encodings, pairwise and product AMO encodings, incremental bound reduction, rotation and reflection symmetry breaking, and a heuristic initial upper bound. The local snapshot contains 179 runs, including comparisons against CP-SAT, CPLEX MIP, CPLEX CP Optimizer, and Gurobi on 28 Harwell-Boeing instances. It also records encoding comparisons, six ablation settings, and incumbent progress.
 
-    On the 28-instance comparison, CaDiCaL proves optimality on 12 instances under a 600-second limit. The encoding and ablation groups provide useful instance-level measurements, while license/model errors and unresolved timeouts limit broader comparisons. Larger runs and repeated trials would be needed to support stronger scalability and performance conclusions.
+    On the 28-instance comparison, CaDiCaL proves optimality on 12 instances under a 600-second limit. The encoding and ablation groups provide useful instance-level measurements, while the CPLEX MIP size-limit errors and the many unresolved timeouts (including 21 for Gurobi) limit broader comparisons. CaDiCaL proves the most optima (12), ahead of CP-SAT (10) and CPLEX CP Optimizer and Gurobi (7 each). Larger runs and repeated trials would be needed to support stronger scalability and performance conclusions.
 
 \bibliographystyle{elsarticle-num}
 \nocite{*}
