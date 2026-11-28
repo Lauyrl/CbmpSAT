@@ -17,7 +17,6 @@ LARGE = ("ash85", "bcspwr03", "will57")
 EXTERNAL_SOLVERS = {
     "CP-SAT": cp_sat.solve,
     "CPLEX CP": cplex_cp.solve,
-    "CPLEX MIP": cplex_mip.solve,
     "Gurobi": gurobi.solve,
 }
 
